@@ -10,4 +10,6 @@ mod execution;
 pub use asset::{AssetResponse, AssetType};
 pub use duplicate::DuplicateGroup;
 pub use exif::ExifInfo;
-pub use execution::{ExecutionConfig, ExecutionReport, GroupResult, OperationResult};
+pub use execution::{
+    ConsolidationResult, ExecutionConfig, ExecutionReport, GroupResult, OperationResult,
+};

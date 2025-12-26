@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Configuration for the execution pipeline.
 #[derive(Debug, Clone)]
@@ -64,6 +64,32 @@ pub enum OperationResult {
     },
 }
 
+/// Result of metadata consolidation from loser assets to winner.
+///
+/// Tracks which metadata fields were transferred and from which asset.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConsolidationResult {
+    /// Whether GPS coordinates were transferred
+    pub gps_transferred: bool,
+
+    /// Whether date/time was transferred
+    pub datetime_transferred: bool,
+
+    /// Whether description was transferred
+    pub description_transferred: bool,
+
+    /// Asset ID that provided the consolidated metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_asset_id: Option<String>,
+}
+
+impl ConsolidationResult {
+    /// Check if any consolidation was performed.
+    pub fn any_transferred(&self) -> bool {
+        self.gps_transferred || self.datetime_transferred || self.description_transferred
+    }
+}
+
 /// Result of processing a single duplicate group.
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupResult {
@@ -75,7 +101,7 @@ pub struct GroupResult {
 
     /// Result of metadata consolidation (if attempted)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub consolidation_result: Option<String>,
+    pub consolidation_result: Option<ConsolidationResult>,
 
     /// Results of downloading each loser asset
     pub download_results: Vec<OperationResult>,

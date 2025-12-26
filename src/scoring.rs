@@ -290,11 +290,14 @@ pub struct ScoredAsset {
     /// Original filename
     pub filename: String,
 
-    /// Metadata completeness score
+    /// Metadata completeness score (used for consolidation decisions)
     pub score: MetadataScore,
 
-    /// File size in bytes (for tiebreaking)
+    /// File size in bytes (secondary tiebreaker)
     pub file_size: Option<u64>,
+
+    /// Image dimensions (width, height) in pixels - primary selection criteria
+    pub dimensions: Option<(u32, u32)>,
 }
 
 /// Analysis result for a duplicate group.
@@ -323,9 +326,11 @@ impl DuplicateAnalysis {
     /// Analyze a duplicate group and select a winner.
     ///
     /// The winner is selected based on:
-    /// 1. Highest metadata score
+    /// 1. Largest dimensions (width × height pixels) - best quality
     /// 2. Largest file size (tiebreaker)
     /// 3. First in list (stable sort, final tiebreaker)
+    ///
+    /// Metadata scores are still calculated and stored for consolidation decisions.
     ///
     /// # Arguments
     ///
@@ -335,23 +340,42 @@ impl DuplicateAnalysis {
     ///
     /// Analysis result with winner, losers, and conflict information
     pub fn from_group(group: &DuplicateGroup) -> Self {
-        // Score all assets
+        // Score all assets and capture dimensions
         let mut scored: Vec<ScoredAsset> = group
             .assets
             .iter()
-            .map(|asset| ScoredAsset {
-                asset_id: asset.id.clone(),
-                filename: asset.original_file_name.clone(),
-                score: MetadataScore::from_asset(asset),
-                file_size: asset.exif_info.as_ref().and_then(|e| e.file_size_in_byte),
+            .map(|asset| {
+                let dimensions = asset.exif_info.as_ref().and_then(|e| {
+                    match (e.exif_image_width, e.exif_image_height) {
+                        (Some(w), Some(h)) => Some((w, h)),
+                        _ => None,
+                    }
+                });
+                ScoredAsset {
+                    asset_id: asset.id.clone(),
+                    filename: asset.original_file_name.clone(),
+                    score: MetadataScore::from_asset(asset),
+                    file_size: asset.exif_info.as_ref().and_then(|e| e.file_size_in_byte),
+                    dimensions,
+                }
             })
             .collect();
 
-        // Sort by score descending, then by file size descending (stable sort)
+        // Sort by dimensions (pixels) descending, then file size descending (stable sort)
         scored.sort_by(|a, b| {
-            match b.score.total.cmp(&a.score.total) {
+            // Primary: largest dimensions (width × height)
+            let pixels_a = a
+                .dimensions
+                .map(|(w, h)| u64::from(w) * u64::from(h))
+                .unwrap_or(0);
+            let pixels_b = b
+                .dimensions
+                .map(|(w, h)| u64::from(w) * u64::from(h))
+                .unwrap_or(0);
+
+            match pixels_b.cmp(&pixels_a) {
                 std::cmp::Ordering::Equal => {
-                    // Tiebreaker: larger file size wins
+                    // Secondary: larger file size wins
                     let size_a = a.file_size.unwrap_or(0);
                     let size_b = b.file_size.unwrap_or(0);
                     size_b.cmp(&size_a)

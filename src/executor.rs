@@ -14,7 +14,9 @@ use tokio::sync::Semaphore;
 
 use crate::client::ImmichClient;
 use crate::error::Result;
-use crate::models::{ExecutionConfig, ExecutionReport, GroupResult, OperationResult};
+use crate::models::{
+    ConsolidationResult, ExecutionConfig, ExecutionReport, GroupResult, OperationResult,
+};
 use crate::scoring::DuplicateAnalysis;
 
 /// Type alias for the governor rate limiter.
@@ -169,8 +171,9 @@ impl Executor {
 
     /// Execute processing for a single duplicate group.
     ///
-    /// Downloads backup copies of all loser assets, then deletes only those
-    /// that were successfully downloaded.
+    /// 1. Consolidates metadata from losers to winner (GPS, datetime, description)
+    /// 2. Downloads backup copies of all loser assets
+    /// 3. Deletes only those that were successfully downloaded
     ///
     /// # Arguments
     ///
@@ -187,12 +190,11 @@ impl Executor {
     ) -> GroupResult {
         let mut download_results = Vec::new();
 
-        // TODO: Metadata consolidation requires re-fetching full asset data.
-        // For now, we skip consolidation. Future enhancement: add exif fields
-        // to ScoredAsset during analysis, or fetch asset data here.
-        let consolidation_result: Option<String> = None;
+        // Step 1: Consolidate metadata from losers to winner
+        pb.set_message("Checking metadata consolidation");
+        let consolidation_result = self.consolidate_metadata(analysis).await;
 
-        // Download each loser asset
+        // Step 2: Download each loser asset
         for loser in &analysis.losers {
             pb.set_message(format!("Downloading {}", loser.filename));
 
@@ -209,7 +211,7 @@ impl Executor {
             })
             .collect();
 
-        // Only delete if we have successfully downloaded assets
+        // Step 3: Only delete if we have successfully downloaded assets
         let delete_result = if downloaded_ids.is_empty() {
             Some(OperationResult::Skipped {
                 id: analysis.duplicate_id.clone(),
@@ -236,6 +238,132 @@ impl Executor {
             consolidation_result,
             download_results,
             delete_result,
+        }
+    }
+
+    /// Consolidate metadata from loser assets to the winner.
+    ///
+    /// Checks if the winner lacks GPS, datetime, or description that any loser has,
+    /// and transfers the metadata to preserve it before deletion.
+    async fn consolidate_metadata(
+        &self,
+        analysis: &DuplicateAnalysis,
+    ) -> Option<ConsolidationResult> {
+        // Fetch winner asset to check what metadata it already has
+        let winner_asset = match self
+            .rate_limited(async { self.client.get_asset(&analysis.winner.asset_id).await })
+            .await
+        {
+            Ok(asset) => asset,
+            Err(_) => return None, // Can't consolidate if we can't fetch winner
+        };
+
+        let winner_exif = winner_asset.exif_info.as_ref();
+        let winner_has_gps = winner_exif.map(|e| e.has_gps()).unwrap_or(false);
+        let winner_has_datetime = winner_exif
+            .and_then(|e| e.date_time_original.as_ref())
+            .is_some();
+        let winner_has_description = winner_exif.and_then(|e| e.description.as_ref()).is_some();
+
+        // If winner has all metadata, no consolidation needed
+        if winner_has_gps && winner_has_datetime && winner_has_description {
+            return None;
+        }
+
+        // Find best source for each missing field from losers (owned values)
+        let mut best_gps: Option<(f64, f64, String)> = None;
+        let mut best_datetime: Option<(String, String)> = None;
+        let mut best_description: Option<(String, String)> = None;
+
+        for loser in &analysis.losers {
+            let loser_asset = match self
+                .rate_limited(async { self.client.get_asset(&loser.asset_id).await })
+                .await
+            {
+                Ok(asset) => asset,
+                Err(_) => continue, // Skip losers we can't fetch
+            };
+
+            if let Some(exif) = &loser_asset.exif_info {
+                // Check GPS
+                if !winner_has_gps
+                    && best_gps.is_none()
+                    && exif.has_gps()
+                    && let (Some(lat), Some(lon)) = (exif.latitude, exif.longitude)
+                {
+                    best_gps = Some((lat, lon, loser.asset_id.clone()));
+                }
+
+                // Check datetime
+                if !winner_has_datetime
+                    && best_datetime.is_none()
+                    && let Some(dt) = &exif.date_time_original
+                {
+                    best_datetime = Some((dt.clone(), loser.asset_id.clone()));
+                }
+
+                // Check description
+                if !winner_has_description
+                    && best_description.is_none()
+                    && let Some(desc) = &exif.description
+                {
+                    best_description = Some((desc.clone(), loser.asset_id.clone()));
+                }
+            }
+
+            // If we've found all we need, stop searching
+            if (winner_has_gps || best_gps.is_some())
+                && (winner_has_datetime || best_datetime.is_some())
+                && (winner_has_description || best_description.is_some())
+            {
+                break;
+            }
+        }
+
+        // Nothing to consolidate
+        if best_gps.is_none() && best_datetime.is_none() && best_description.is_none() {
+            return None;
+        }
+
+        // Prepare update parameters
+        let (latitude, longitude) = match &best_gps {
+            Some((lat, lon, _)) => (Some(*lat), Some(*lon)),
+            None => (None, None),
+        };
+        let date_time_original = best_datetime.as_ref().map(|(dt, _)| dt.as_str());
+        let description = best_description.as_ref().map(|(desc, _)| desc.as_str());
+
+        // Determine source asset ID (prefer GPS source, then datetime, then description)
+        let source_asset_id = best_gps
+            .as_ref()
+            .map(|(_, _, id)| id.clone())
+            .or_else(|| best_datetime.as_ref().map(|(_, id)| id.clone()))
+            .or_else(|| best_description.as_ref().map(|(_, id)| id.clone()));
+
+        // Update winner with consolidated metadata
+        let update_result = self
+            .rate_limited(async {
+                self.client
+                    .update_asset_metadata(
+                        &analysis.winner.asset_id,
+                        latitude,
+                        longitude,
+                        date_time_original,
+                        description,
+                    )
+                    .await
+            })
+            .await;
+
+        if update_result.is_ok() {
+            Some(ConsolidationResult {
+                gps_transferred: best_gps.is_some(),
+                datetime_transferred: best_datetime.is_some(),
+                description_transferred: best_description.is_some(),
+                source_asset_id,
+            })
+        } else {
+            None // Consolidation failed, but we can still proceed with download/delete
         }
     }
 

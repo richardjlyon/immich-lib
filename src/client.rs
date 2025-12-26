@@ -10,7 +10,7 @@ use tokio::io::AsyncWriteExt;
 use url::Url;
 
 use crate::error::{ImmichError, Result};
-use crate::models::DuplicateGroup;
+use crate::models::{AssetResponse, DuplicateGroup};
 
 /// Client for interacting with the Immich REST API.
 ///
@@ -90,6 +90,28 @@ impl ImmichClient {
     /// - The response cannot be parsed as JSON
     pub async fn get_duplicates(&self) -> Result<Vec<DuplicateGroup>> {
         let url = self.base_url.join("/api/duplicates")?;
+        let response = self.client.get(url).send().await?;
+        self.handle_response(response).await
+    }
+
+    /// Fetches a single asset by ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `asset_id` - The ID of the asset to fetch
+    ///
+    /// # Returns
+    ///
+    /// The asset with its EXIF metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The HTTP request fails (network error, timeout)
+    /// - The server returns an error response (401 unauthorized, 404 not found)
+    /// - The response cannot be parsed as JSON
+    pub async fn get_asset(&self, asset_id: &str) -> Result<AssetResponse> {
+        let url = self.base_url.join(&format!("/api/assets/{}", asset_id))?;
         let response = self.client.get(url).send().await?;
         self.handle_response(response).await
     }
