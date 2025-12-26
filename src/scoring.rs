@@ -3,7 +3,7 @@
 //! This module provides scoring algorithms for ranking assets by metadata completeness
 //! and detecting conflicts between duplicate assets.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::models::{AssetResponse, DuplicateGroup};
 
@@ -26,7 +26,7 @@ const GPS_THRESHOLD: f64 = 0.0001;
 ///
 /// Each category contributes a weighted score based on presence of metadata.
 /// Higher total scores indicate more complete metadata.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MetadataScore {
     /// GPS coordinate score (0 or 30)
     pub gps: u32,
@@ -117,7 +117,7 @@ impl MetadataScore {
 ///
 /// A conflict occurs when multiple assets have different values
 /// for the same metadata field.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum MetadataConflict {
     /// Different GPS coordinates across duplicates
@@ -282,7 +282,7 @@ fn find_unique_strings(values: &[String]) -> Option<Vec<String>> {
 }
 
 /// A scored asset with metadata score and file information.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoredAsset {
     /// Asset unique identifier
     pub asset_id: String,
@@ -301,7 +301,7 @@ pub struct ScoredAsset {
 ///
 /// Contains the selected winner, losers, detected conflicts,
 /// and whether manual review is recommended.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DuplicateAnalysis {
     /// Duplicate group identifier
     pub duplicate_id: String,

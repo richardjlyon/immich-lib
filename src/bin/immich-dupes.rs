@@ -1,15 +1,16 @@
 //! CLI tool for managing Immich duplicates with metadata-aware selection.
 
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter, Write};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use immich_lib::{DuplicateAnalysis, ImmichClient};
+use immich_lib::models::ExecutionConfig;
+use immich_lib::{DuplicateAnalysis, Executor, ImmichClient};
 
 /// Immich duplicate manager - prioritizes metadata completeness over file size
 #[derive(Parser, Debug)]
@@ -36,10 +37,41 @@ enum Commands {
         #[arg(short, long)]
         output: PathBuf,
     },
+
+    /// Execute duplicate removal based on analysis JSON
+    Execute {
+        /// Path to analysis JSON from analyze command
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Directory to download backup files to
+        #[arg(short, long)]
+        backup_dir: PathBuf,
+
+        /// Permanently delete instead of moving to trash
+        #[arg(long, default_value = "false")]
+        force: bool,
+
+        /// Max requests per second (default: 10)
+        #[arg(long, default_value = "10")]
+        rate_limit: u32,
+
+        /// Max concurrent operations (default: 5)
+        #[arg(long, default_value = "5")]
+        concurrent: usize,
+
+        /// Skip groups that need manual review
+        #[arg(long, default_value = "false")]
+        skip_review: bool,
+
+        /// Skip confirmation prompt
+        #[arg(short, long, default_value = "false")]
+        yes: bool,
+    },
 }
 
 /// Report containing analysis results for all duplicate groups.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct AnalysisReport {
     /// Timestamp when the analysis was generated
     generated_at: DateTime<Utc>,
@@ -70,6 +102,28 @@ async fn main() -> Result<()> {
     match args.command {
         Commands::Analyze { output } => {
             run_analyze(&args.url, &args.api_key, &output).await?;
+        }
+        Commands::Execute {
+            input,
+            backup_dir,
+            force,
+            rate_limit,
+            concurrent,
+            skip_review,
+            yes,
+        } => {
+            run_execute(
+                &args.url,
+                &args.api_key,
+                &input,
+                &backup_dir,
+                force,
+                rate_limit,
+                concurrent,
+                skip_review,
+                yes,
+            )
+            .await?;
         }
     }
 
@@ -138,6 +192,146 @@ async fn run_analyze(url: &str, api_key: &str, output: &PathBuf) -> Result<()> {
     }
     println!();
     println!("Output written to: {}", output.display());
+
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_execute(
+    url: &str,
+    api_key: &str,
+    input: &PathBuf,
+    backup_dir: &PathBuf,
+    force: bool,
+    rate_limit: u32,
+    concurrent: usize,
+    skip_review: bool,
+    yes: bool,
+) -> Result<()> {
+    // Read and parse analysis JSON
+    let file = File::open(input)
+        .with_context(|| format!("Failed to open input file: {}", input.display()))?;
+    let reader = BufReader::new(file);
+    let report: AnalysisReport = serde_json::from_reader(reader)
+        .context("Failed to parse analysis JSON")?;
+
+    // Filter groups based on skip_review flag
+    let groups: Vec<DuplicateAnalysis> = if skip_review {
+        report.groups.into_iter().filter(|g| !g.needs_review).collect()
+    } else {
+        report.groups
+    };
+
+    if groups.is_empty() {
+        println!("No groups to process.");
+        return Ok(());
+    }
+
+    // Calculate assets to process
+    let total_assets: usize = groups.iter().map(|g| g.losers.len()).sum();
+    let estimated_size: u64 = groups
+        .iter()
+        .flat_map(|g| g.losers.iter())
+        .filter_map(|l| l.file_size)
+        .sum();
+
+    // Create backup directory if it doesn't exist
+    std::fs::create_dir_all(backup_dir)
+        .with_context(|| format!("Failed to create backup directory: {}", backup_dir.display()))?;
+
+    // Print execution summary
+    println!();
+    println!("Execution Plan");
+    println!("==============");
+    println!("Groups to process: {}", groups.len());
+    println!("Assets to download: {}", total_assets);
+    if estimated_size > 0 {
+        let size_mb = estimated_size as f64 / 1_048_576.0;
+        println!("Estimated disk space: {:.1} MB", size_mb);
+    }
+    println!("Backup directory: {}", backup_dir.display());
+    println!("Force delete: {}", if force { "yes (permanent)" } else { "no (trash)" });
+    println!();
+
+    // Confirmation prompt
+    if !yes {
+        print!("About to download {} assets and delete them from Immich. Continue? [y/N] ", total_assets);
+        std::io::stdout().flush()?;
+
+        let mut response = String::new();
+        std::io::stdin().read_line(&mut response)?;
+        let response = response.trim().to_lowercase();
+
+        if response != "y" && response != "yes" {
+            println!("Aborted.");
+            return Ok(());
+        }
+    }
+
+    println!();
+    println!("Starting execution...");
+    println!();
+
+    // Create client and executor
+    let client = ImmichClient::new(url, api_key)
+        .context("Failed to create Immich client")?;
+
+    let config = ExecutionConfig {
+        requests_per_sec: rate_limit,
+        max_concurrent: concurrent,
+        backup_dir: backup_dir.clone(),
+        force_delete: force,
+    };
+
+    let executor = Executor::new(client, config);
+
+    // Execute
+    let exec_report = executor.execute_all(&groups).await;
+
+    // Print summary
+    println!();
+    println!("Execution Complete");
+    println!("==================");
+    println!("Groups processed: {}", exec_report.total_groups);
+    println!("Assets downloaded: {}", exec_report.downloaded);
+    println!("Assets deleted: {}", exec_report.deleted);
+    println!("Failed operations: {}", exec_report.failed);
+    println!("Skipped: {}", exec_report.skipped);
+
+    // Show first few errors if any
+    if exec_report.failed > 0 {
+        println!();
+        println!("First errors:");
+        let errors: Vec<_> = exec_report
+            .results
+            .iter()
+            .flat_map(|g| g.download_results.iter())
+            .filter_map(|r| {
+                if let immich_lib::models::OperationResult::Failed { id, error } = r {
+                    Some((id, error))
+                } else {
+                    None
+                }
+            })
+            .take(5)
+            .collect();
+
+        for (id, error) in errors {
+            println!("  - {}: {}", id, error);
+        }
+    }
+
+    // Write execution report to backup directory
+    let timestamp = Utc::now().format("%Y%m%d-%H%M%S");
+    let report_path = backup_dir.join(format!("execution-report-{}.json", timestamp));
+    let report_file = File::create(&report_path)
+        .with_context(|| format!("Failed to create report file: {}", report_path.display()))?;
+    let writer = BufWriter::new(report_file);
+    serde_json::to_writer_pretty(writer, &exec_report)
+        .context("Failed to write execution report")?;
+
+    println!();
+    println!("Execution report: {}", report_path.display());
 
     Ok(())
 }
