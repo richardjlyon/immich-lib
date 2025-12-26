@@ -1,0 +1,23 @@
+# Build artifacts
+/target/
+Cargo.lock
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+*.log
+/backups/

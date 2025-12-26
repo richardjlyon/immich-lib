@@ -27,12 +27,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### Phase 1: Foundation
 **Goal**: Set up Rust project structure with working Immich API client and authentication
 **Depends on**: Nothing (first phase)
-**Research**: Likely (Immich API authentication, endpoint structure)
-**Research topics**: Immich API auth method (API key vs OAuth), base API structure, error response format
-**Plans**: TBD
+**Research**: Complete (01-RESEARCH.md)
+**Plans**: 2
 
 Plans:
-- [ ] 01-01: TBD
+- [x] 01-01: Project Structure & Types (3 tasks, autonomous) ✓
+- [ ] 01-02: HTTP Client & Authentication (2 tasks, has checkpoint)
 
 ### Phase 2: Duplicate Discovery
 **Goal**: Fetch duplicate groups from Immich and retrieve asset metadata for comparison
@@ -79,7 +79,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/? | Not started | - |
+| 1. Foundation | 1/2 | In progress | - |
 | 2. Duplicate Discovery | 0/? | Not started | - |
 | 3. Metadata Scoring | 0/? | Not started | - |
 | 4. Analysis Stage | 0/? | Not started | - |
