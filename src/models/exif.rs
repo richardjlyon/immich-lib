@@ -64,4 +64,48 @@ pub struct ExifInfo {
 
     /// User rating (1-5)
     pub rating: Option<u8>,
+
+    /// Image orientation (e.g., "Rotate 90 CW")
+    #[serde(default)]
+    pub orientation: Option<String>,
+
+    /// File modification date
+    #[serde(default)]
+    pub modify_date: Option<String>,
+
+    /// Projection type for 360 photos
+    #[serde(default)]
+    pub projection_type: Option<String>,
+}
+
+impl ExifInfo {
+    /// Returns true if GPS coordinates are present
+    pub fn has_gps(&self) -> bool {
+        self.latitude.is_some() && self.longitude.is_some()
+    }
+
+    /// Returns true if camera make/model is present
+    pub fn has_camera_info(&self) -> bool {
+        self.make.is_some() || self.model.is_some()
+    }
+
+    /// Returns true if timezone information is present
+    pub fn has_timezone(&self) -> bool {
+        self.time_zone.is_some()
+    }
+
+    /// Returns true if original capture time is present
+    pub fn has_capture_time(&self) -> bool {
+        self.date_time_original.is_some()
+    }
+
+    /// Returns true if lens information is present
+    pub fn has_lens_info(&self) -> bool {
+        self.lens_model.is_some()
+    }
+
+    /// Returns true if location (city/country) is present
+    pub fn has_location(&self) -> bool {
+        self.city.is_some() || self.country.is_some()
+    }
 }

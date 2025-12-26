@@ -49,4 +49,32 @@ pub struct AssetResponse {
 
     /// Whether the asset is archived
     pub is_archived: bool,
+
+    /// Whether the asset has metadata
+    pub has_metadata: bool,
+
+    /// Duration string (e.g., "0:00:00.000000" for images)
+    pub duration: String,
+
+    /// Owner user ID
+    pub owner_id: String,
+
+    /// Original MIME type (optional)
+    #[serde(default)]
+    pub original_mime_type: Option<String>,
+
+    /// Duplicate group ID (null if not a duplicate)
+    #[serde(default)]
+    pub duplicate_id: Option<String>,
+
+    /// Thumbhash for quick preview (nullable)
+    #[serde(default)]
+    pub thumbhash: Option<String>,
+}
+
+impl AssetResponse {
+    /// Returns true if this asset has any EXIF metadata
+    pub fn has_exif(&self) -> bool {
+        self.exif_info.is_some()
+    }
 }
