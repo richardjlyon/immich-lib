@@ -25,3 +25,6 @@ url = "2"
 clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
 dotenvy = "0.15"
+
+[[example]]
+name = "test_connection"
