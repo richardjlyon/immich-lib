@@ -21,9 +21,11 @@
 
 pub mod client;
 pub mod error;
+pub mod executor;
 pub mod models;
 pub mod scoring;
 
 pub use client::ImmichClient;
 pub use error::{ImmichError, Result};
+pub use executor::Executor;
 pub use scoring::{detect_conflicts, DuplicateAnalysis, MetadataConflict, MetadataScore, ScoredAsset};

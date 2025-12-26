@@ -5,7 +5,9 @@
 mod asset;
 mod duplicate;
 mod exif;
+mod execution;
 
 pub use asset::{AssetResponse, AssetType};
 pub use duplicate::DuplicateGroup;
 pub use exif::ExifInfo;
+pub use execution::{ExecutionConfig, ExecutionReport, GroupResult, OperationResult};

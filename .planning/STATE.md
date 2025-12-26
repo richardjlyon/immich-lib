@@ -19,18 +19,18 @@
 ## Current Position
 
 Phase: 5 of 5 (Execution Stage)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2025-12-26 - Completed 05-01-PLAN.md
+Last activity: 2025-12-26 - Completed 05-02-PLAN.md
 
-Progress: ████████░░ 83%
+Progress: █████████░ 88%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 4 min
-- Total execution time: 22 min
+- Total execution time: 26 min
 
 **By Phase:**
 
@@ -40,10 +40,10 @@ Progress: ████████░░ 83%
 | 2 | 1/1 | 2 min | 2 min |
 | 3 | 1/1 | 3 min | 3 min |
 | 4 | 1/1 | 5 min | 5 min |
-| 5 | 1/3 | 4 min | 4 min |
+| 5 | 2/3 | 8 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (4 min), 02-01 (2 min), 03-01 (3 min), 04-01 (5 min), 05-01 (4 min)
+- Last 5 plans: 02-01 (2 min), 03-01 (3 min), 04-01 (5 min), 05-01 (4 min), 05-02 (4 min)
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -74,6 +74,10 @@ Progress: ████████░░ 83%
 | 05-01 | Streaming downloads with bytes_stream() | Handles large files without memory buffering |
 | 05-01 | Internal request structs for API calls | Clean public API, serialization details hidden |
 | 05-01 | skip_serializing_if for optional fields | Minimal JSON payloads sent to API |
+| 05-02 | governor GCRA for rate limiting | Proven algorithm, clean async API |
+| 05-02 | Two-phase download-then-delete | Only delete assets successfully backed up |
+| 05-02 | Asset ID prefix in filenames | Prevents collision when multiple files have same name |
+| 05-02 | Defer metadata consolidation | Requires re-fetching EXIF data not in ScoredAsset |
 
 ### Deferred Issues
 
@@ -93,5 +97,5 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-26
-Stopped at: Completed 05-01-PLAN.md, ready for 05-02
+Stopped at: Completed 05-02-PLAN.md, ready for 05-03
 Resume file: None
