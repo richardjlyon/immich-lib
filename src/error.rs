@@ -29,6 +29,10 @@ pub enum ImmichError {
     /// Requested asset was not found
     #[error("Asset not found: {0}")]
     AssetNotFound(String),
+
+    /// File I/O error
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 /// Convenience type alias for Results using ImmichError.
