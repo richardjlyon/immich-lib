@@ -70,6 +70,16 @@ enum Commands {
         yes: bool,
     },
 
+    /// Verify post-execution state: check winners exist, losers deleted
+    Verify {
+        /// Path to the analysis JSON that was used for execution
+        analysis_json: PathBuf,
+
+        /// Output format (text or json)
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+
     /// Find test candidates by scanning duplicate groups and categorizing by scenario
     FindTestCandidates {
         /// Output format (text or json)
@@ -119,6 +129,81 @@ struct AnalysisReport {
     groups: Vec<DuplicateAnalysis>,
 }
 
+/// Result of verifying a single group
+#[derive(Debug, Serialize)]
+struct GroupVerification {
+    /// Duplicate group ID
+    duplicate_id: String,
+
+    /// Winner verification status
+    winner_status: AssetStatus,
+
+    /// Loser verification statuses
+    loser_statuses: Vec<AssetStatus>,
+
+    /// Consolidation checks (GPS transferred, etc.)
+    consolidation_checks: Vec<ConsolidationCheck>,
+}
+
+/// Status of a single asset in verification
+#[derive(Debug, Serialize)]
+struct AssetStatus {
+    asset_id: String,
+    filename: String,
+    /// "present", "deleted", "error"
+    status: String,
+    /// Optional error message
+    error: Option<String>,
+}
+
+/// A consolidation check result
+#[derive(Debug, Serialize)]
+struct ConsolidationCheck {
+    /// What was checked (e.g., "gps_transferred", "datetime_transferred")
+    check_type: String,
+    /// Whether the check passed
+    passed: bool,
+    /// Details about the check
+    details: String,
+}
+
+/// Full verification report
+#[derive(Debug, Serialize)]
+struct VerificationReport {
+    /// When verification was performed
+    verified_at: DateTime<Utc>,
+
+    /// Server URL
+    server_url: String,
+
+    /// Groups verified
+    groups_verified: usize,
+
+    /// Winners present count
+    winners_present: usize,
+
+    /// Winners missing count (errors)
+    winners_missing: usize,
+
+    /// Losers confirmed deleted
+    losers_deleted: usize,
+
+    /// Losers still present (errors)
+    losers_still_present: usize,
+
+    /// Consolidation checks passed
+    consolidation_passed: usize,
+
+    /// Consolidation checks failed
+    consolidation_failed: usize,
+
+    /// Per-group verification results
+    groups: Vec<GroupVerification>,
+
+    /// Any anomalies detected
+    anomalies: Vec<String>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load .env file if present
@@ -155,6 +240,11 @@ async fn main() -> Result<()> {
                 yes,
             )
             .await?;
+        }
+        Commands::Verify { analysis_json, format } => {
+            let url = args.url.as_ref().context("IMMICH_URL is required for verify command")?;
+            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for verify command")?;
+            run_verify(url, api_key, &analysis_json, &format).await?;
         }
         Commands::FindTestCandidates {
             format,
@@ -376,6 +466,257 @@ async fn run_execute(
 
     println!();
     println!("Execution report: {}", report_path.display());
+
+    Ok(())
+}
+
+async fn run_verify(url: &str, api_key: &str, analysis_json: &PathBuf, format: &str) -> Result<()> {
+    println!("Verifying post-execution state...");
+    println!("Analysis file: {}", analysis_json.display());
+    println!();
+
+    // Load analysis JSON
+    let file = File::open(analysis_json)
+        .with_context(|| format!("Failed to open analysis file: {}", analysis_json.display()))?;
+    let reader = BufReader::new(file);
+    let analysis: AnalysisReport = serde_json::from_reader(reader)
+        .context("Failed to parse analysis JSON")?;
+
+    // Create client
+    let client = ImmichClient::new(url, api_key).context("Failed to create Immich client")?;
+
+    let mut groups_verified = 0;
+    let mut winners_present = 0;
+    let mut winners_missing = 0;
+    let mut losers_deleted = 0;
+    let mut losers_still_present = 0;
+    let mut consolidation_passed = 0;
+    let mut consolidation_failed = 0;
+    let mut group_results = Vec::new();
+    let mut anomalies = Vec::new();
+
+    println!("Checking {} groups...", analysis.groups.len());
+    println!();
+
+    for group in &analysis.groups {
+        groups_verified += 1;
+
+        // Check winner exists
+        let winner_status = match client.get_asset(&group.winner.asset_id).await {
+            Ok(asset) => {
+                winners_present += 1;
+                // Winner is present - check for consolidation if needed
+                let mut consolidation_checks = Vec::new();
+
+                // Check if any loser had GPS and winner didn't originally have it
+                let winner_had_gps = group.winner.score.gps > 0;
+                let any_loser_had_gps = group.losers.iter().any(|l| l.score.gps > 0);
+
+                if !winner_had_gps && any_loser_had_gps {
+                    // GPS should have been consolidated from loser to winner
+                    let has_gps_now = asset.exif_info.as_ref().is_some_and(|e| e.has_gps());
+                    if has_gps_now {
+                        consolidation_passed += 1;
+                        consolidation_checks.push(ConsolidationCheck {
+                            check_type: "gps_transferred".to_string(),
+                            passed: true,
+                            details: "GPS coordinates successfully transferred from loser".to_string(),
+                        });
+                    } else {
+                        consolidation_failed += 1;
+                        consolidation_checks.push(ConsolidationCheck {
+                            check_type: "gps_transferred".to_string(),
+                            passed: false,
+                            details: "GPS coordinates were NOT transferred from loser".to_string(),
+                        });
+                        anomalies.push(format!(
+                            "Group {}: GPS not transferred to winner {}",
+                            group.duplicate_id, group.winner.asset_id
+                        ));
+                    }
+                }
+
+                AssetStatus {
+                    asset_id: group.winner.asset_id.clone(),
+                    filename: group.winner.filename.clone(),
+                    status: "present".to_string(),
+                    error: None,
+                }
+            }
+            Err(immich_lib::ImmichError::Api { status: 404, .. }) => {
+                winners_missing += 1;
+                anomalies.push(format!(
+                    "CRITICAL: Winner {} ({}) was deleted!",
+                    group.winner.asset_id, group.winner.filename
+                ));
+                AssetStatus {
+                    asset_id: group.winner.asset_id.clone(),
+                    filename: group.winner.filename.clone(),
+                    status: "deleted".to_string(),
+                    error: Some("Winner was incorrectly deleted".to_string()),
+                }
+            }
+            Err(e) => {
+                winners_missing += 1;
+                anomalies.push(format!(
+                    "Error checking winner {}: {}",
+                    group.winner.asset_id, e
+                ));
+                AssetStatus {
+                    asset_id: group.winner.asset_id.clone(),
+                    filename: group.winner.filename.clone(),
+                    status: "error".to_string(),
+                    error: Some(e.to_string()),
+                }
+            }
+        };
+
+        // Check all losers are deleted (or trashed)
+        let mut loser_statuses = Vec::new();
+        for loser in &group.losers {
+            let loser_status = match client.get_asset(&loser.asset_id).await {
+                Ok(asset) => {
+                    if asset.is_trashed {
+                        // Loser is in trash - this counts as deleted
+                        losers_deleted += 1;
+                        AssetStatus {
+                            asset_id: loser.asset_id.clone(),
+                            filename: loser.filename.clone(),
+                            status: "trashed".to_string(),
+                            error: None,
+                        }
+                    } else {
+                        // Loser still exists and not trashed - this is wrong!
+                        losers_still_present += 1;
+                        anomalies.push(format!(
+                            "Loser {} ({}) still exists (not trashed), should be deleted",
+                            loser.asset_id, loser.filename
+                        ));
+                        AssetStatus {
+                            asset_id: loser.asset_id.clone(),
+                            filename: loser.filename.clone(),
+                            status: "present".to_string(),
+                            error: Some("Loser should have been deleted".to_string()),
+                        }
+                    }
+                }
+                Err(immich_lib::ImmichError::Api { status: 404, .. }) => {
+                    // Loser correctly deleted (permanently)
+                    losers_deleted += 1;
+                    AssetStatus {
+                        asset_id: loser.asset_id.clone(),
+                        filename: loser.filename.clone(),
+                        status: "deleted".to_string(),
+                        error: None,
+                    }
+                }
+                Err(e) => {
+                    // Some other error
+                    anomalies.push(format!(
+                        "Error checking loser {}: {}",
+                        loser.asset_id, e
+                    ));
+                    AssetStatus {
+                        asset_id: loser.asset_id.clone(),
+                        filename: loser.filename.clone(),
+                        status: "error".to_string(),
+                        error: Some(e.to_string()),
+                    }
+                }
+            };
+            loser_statuses.push(loser_status);
+        }
+
+        // Collect consolidation checks from winner verification
+        let consolidation_checks = if winner_status.status == "present" {
+            let mut checks = Vec::new();
+            let winner_had_gps = group.winner.score.gps > 0;
+            let any_loser_had_gps = group.losers.iter().any(|l| l.score.gps > 0);
+            if !winner_had_gps && any_loser_had_gps {
+                // Already tracked above in the winner check
+            } else if winner_had_gps {
+                checks.push(ConsolidationCheck {
+                    check_type: "gps_retained".to_string(),
+                    passed: true,
+                    details: "Winner already had GPS, no transfer needed".to_string(),
+                });
+            } else {
+                checks.push(ConsolidationCheck {
+                    check_type: "no_gps".to_string(),
+                    passed: true,
+                    details: "No GPS in group, no transfer needed".to_string(),
+                });
+            }
+            checks
+        } else {
+            Vec::new()
+        };
+
+        group_results.push(GroupVerification {
+            duplicate_id: group.duplicate_id.clone(),
+            winner_status,
+            loser_statuses,
+            consolidation_checks,
+        });
+
+        // Progress indicator
+        if groups_verified % 10 == 0 {
+            print!(".");
+            std::io::stdout().flush()?;
+        }
+    }
+    println!();
+    println!();
+
+    // Build report
+    let report = VerificationReport {
+        verified_at: Utc::now(),
+        server_url: url.to_string(),
+        groups_verified,
+        winners_present,
+        winners_missing,
+        losers_deleted,
+        losers_still_present,
+        consolidation_passed,
+        consolidation_failed,
+        groups: group_results,
+        anomalies: anomalies.clone(),
+    };
+
+    // Output based on format
+    match format.to_lowercase().as_str() {
+        "json" => {
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
+        _ => {
+            println!("Verification Report");
+            println!("==================");
+            println!();
+            println!("Groups verified:       {}", groups_verified);
+            println!("Winners present:       {}/{}", winners_present, groups_verified);
+            println!("Winners missing:       {}", winners_missing);
+            println!("Losers deleted:        {}", losers_deleted);
+            println!("Losers still present:  {}", losers_still_present);
+            println!();
+            println!("Consolidation passed:  {}", consolidation_passed);
+            println!("Consolidation failed:  {}", consolidation_failed);
+
+            if !anomalies.is_empty() {
+                println!();
+                println!("Anomalies ({}):", anomalies.len());
+                for anomaly in &anomalies {
+                    println!("  - {}", anomaly);
+                }
+            }
+
+            println!();
+            if winners_missing == 0 && losers_still_present == 0 && consolidation_failed == 0 {
+                println!("VERIFICATION PASSED: All checks successful");
+            } else {
+                println!("VERIFICATION FAILED: Issues detected");
+            }
+        }
+    }
 
     Ok(())
 }

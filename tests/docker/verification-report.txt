@@ -1,0 +1,20 @@
+Verifying post-execution state...
+Analysis file: tests/docker/validation-analysis.json
+
+Checking 31 groups...
+
+...
+
+Verification Report
+==================
+
+Groups verified:       31
+Winners present:       31/31
+Winners missing:       0
+Losers deleted:        43
+Losers still present:  0
+
+Consolidation passed:  3
+Consolidation failed:  0
+
+VERIFICATION PASSED: All checks successful

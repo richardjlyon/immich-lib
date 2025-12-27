@@ -105,7 +105,8 @@ Plans:
 
 Plans:
 - [x] 07-01: Validation Runner - full workflow against Docker Immich ✓
-- [ ] 07-02: End-State Verification - verify all surviving images
+- [x] 07-02: End-State Verification - verify all surviving images ✓
+- [ ] 07-03: Restore Command - re-upload backed-up files to Immich
 
 ## Progress
 
@@ -120,4 +121,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Analysis Stage | 1/1 | Complete | 2025-12-26 |
 | 5. Execution Stage | 4/4 | Complete | 2025-12-26 |
 | 6. Synthetic Integration Tests | 11/11 | Complete | 2025-12-27 |
-| 7. Live Instance Validation | 1/2 | In progress | - |
+| 7. Live Instance Validation | 2/3 | In progress | - |
