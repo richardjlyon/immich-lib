@@ -1,0 +1,8 @@
+{
+  "scenario": "X1",
+  "description": "Single asset group - trivial case",
+  "images": [
+    "x1_single.jpg"
+  ],
+  "expected_winner": "x1_single.jpg"
+}

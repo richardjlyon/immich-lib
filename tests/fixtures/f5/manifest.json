@@ -1,0 +1,9 @@
+{
+  "scenario": "F5",
+  "description": "Capture time conflict - morning vs evening",
+  "images": [
+    "f5_morning.jpg",
+    "f5_evening.jpg"
+  ],
+  "expected_winner": "f5_morning.jpg"
+}

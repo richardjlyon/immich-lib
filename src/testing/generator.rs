@@ -61,8 +61,12 @@ pub struct TestImage {
 
 /// Generate a test image with specified properties and EXIF metadata.
 ///
-/// Uses the `image` crate to create a JPEG with specified dimensions,
-/// then applies EXIF metadata using exiftool CLI.
+/// Uses the `image` crate to create images with specified dimensions,
+/// then applies EXIF metadata using exiftool CLI. Supports multiple formats:
+/// - `.jpg` / `.jpeg` - JPEG format with EXIF
+/// - `.png` - PNG format (limited EXIF support)
+/// - `.mp4` - Video files via ffmpeg
+/// - `.heic` / `.cr3` etc. - Returns error (encoding not supported)
 ///
 /// # Arguments
 /// * `spec` - The test image specification
@@ -73,24 +77,99 @@ pub struct TestImage {
 pub fn generate_image(spec: &TestImage, output_dir: &Path) -> Result<PathBuf> {
     use image::{ImageBuffer, Rgb, ImageFormat};
 
-    // Determine actual dimensions (use defaults if None, we'll strip EXIF later)
-    let width = spec.image_spec.width.unwrap_or(1920);
-    let height = spec.image_spec.height.unwrap_or(1080);
-    let color = Rgb(spec.image_spec.color);
-
-    // Create solid color image
-    let img: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_fn(width, height, |_, _| color);
+    let ext = Path::new(&spec.filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
 
     let output_path = output_dir.join(&spec.filename);
 
-    // Save as JPEG
-    img.save_with_format(&output_path, ImageFormat::Jpeg)
+    match ext.as_str() {
+        // Video files - use ffmpeg
+        "mp4" | "mov" | "avi" => {
+            return generate_video_with_dimensions(&spec.filename, output_dir, &spec.image_spec);
+        }
+
+        // Unsupported formats - return error with explanation
+        "heic" | "heif" => {
+            return Err(ImmichError::Io(std::io::Error::other(
+                "HEIC encoding not available - requires platform-specific encoder",
+            )));
+        }
+        "cr3" | "cr2" | "nef" | "arw" | "dng" | "raf" | "orf" => {
+            return Err(ImmichError::Io(std::io::Error::other(
+                format!("RAW format .{} encoding not available - requires proprietary encoder", ext),
+            )));
+        }
+
+        // PNG format
+        "png" => {
+            let width = spec.image_spec.width.unwrap_or(1920);
+            let height = spec.image_spec.height.unwrap_or(1080);
+            let color = Rgb(spec.image_spec.color);
+            let img: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_fn(width, height, |_, _| color);
+
+            img.save_with_format(&output_path, ImageFormat::Png)
+                .map_err(|e| ImmichError::Io(std::io::Error::other(
+                    format!("Failed to save PNG: {}", e),
+                )))?;
+
+            // PNG has limited EXIF support, but try anyway
+            let _ = apply_exif(&output_path, &spec.exif_spec, &spec.image_spec);
+        }
+
+        // Default to JPEG for everything else
+        _ => {
+            let width = spec.image_spec.width.unwrap_or(1920);
+            let height = spec.image_spec.height.unwrap_or(1080);
+            let color = Rgb(spec.image_spec.color);
+            let img: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_fn(width, height, |_, _| color);
+
+            img.save_with_format(&output_path, ImageFormat::Jpeg)
+                .map_err(|e| ImmichError::Io(std::io::Error::other(
+                    format!("Failed to save JPEG: {}", e),
+                )))?;
+
+            apply_exif(&output_path, &spec.exif_spec, &spec.image_spec)?;
+        }
+    }
+
+    Ok(output_path)
+}
+
+/// Generate a video with specific dimensions.
+fn generate_video_with_dimensions(filename: &str, output_dir: &Path, image_spec: &ImageSpec) -> Result<PathBuf> {
+    let output_path = output_dir.join(filename);
+
+    let width = image_spec.width.unwrap_or(1920);
+    let height = image_spec.height.unwrap_or(1080);
+    let size = format!("{}x{}", width, height);
+    let color_hex = format!(
+        "#{:02x}{:02x}{:02x}",
+        image_spec.color[0], image_spec.color[1], image_spec.color[2]
+    );
+
+    let output = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f", "lavfi",
+            "-i", &format!("color=c={}:s={}:d=1", color_hex, size),
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            output_path.to_string_lossy().as_ref(),
+        ])
+        .output()
         .map_err(|e| ImmichError::Io(std::io::Error::other(
-            format!("Failed to save image: {}", e),
+            format!("Failed to run ffmpeg: {}. Is ffmpeg installed?", e),
         )))?;
 
-    // Apply EXIF metadata using exiftool
-    apply_exif(&output_path, &spec.exif_spec, &spec.image_spec)?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(ImmichError::Io(std::io::Error::other(
+            format!("ffmpeg failed: {}", stderr),
+        )));
+    }
 
     Ok(output_path)
 }

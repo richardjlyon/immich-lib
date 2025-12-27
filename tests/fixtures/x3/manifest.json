@@ -1,0 +1,9 @@
+{
+  "scenario": "X3",
+  "description": "Large file handling (48MP image)",
+  "images": [
+    "x3_large.jpg",
+    "x3_small.jpg"
+  ],
+  "expected_winner": "x3_large.jpg"
+}

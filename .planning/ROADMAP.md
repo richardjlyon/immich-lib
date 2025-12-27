@@ -87,7 +87,7 @@ Plans:
 Plans:
 - [x] 06-01: Test Candidate Finder - scan real Immich, categorize by scenario
 - [x] 06-02: Review & Refine Test Matrix - checkpoint to assess findings
-- [~] 06-03: Test Image Generator - create synthetic images with controlled EXIF (3-1, 3-2 complete)
+- [x] 06-03: Test Image Generator - create synthetic images with controlled EXIF
 - [ ] 06-04: Docker Test Environment - Immich stack + seed/snapshot/reset
 - [ ] 06-05: Integration Test Suite - Rust tests for all scenarios
 
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Metadata Scoring | 1/1 | Complete | 2025-12-26 |
 | 4. Analysis Stage | 1/1 | Complete | 2025-12-26 |
 | 5. Execution Stage | 4/4 | Complete | 2025-12-26 |
-| 6. Synthetic Integration Tests | 4/5 | In progress | - |
+| 6. Synthetic Integration Tests | 3/5 | In progress | - |
 | 7. Live Instance Validation | 0/2 | Future | - |

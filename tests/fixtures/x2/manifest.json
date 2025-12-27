@@ -1,0 +1,19 @@
+{
+  "scenario": "X2",
+  "description": "12 duplicates - largest should win",
+  "images": [
+    "x2_dup_00.jpg",
+    "x2_dup_01.jpg",
+    "x2_dup_02.jpg",
+    "x2_dup_03.jpg",
+    "x2_dup_04.jpg",
+    "x2_dup_05.jpg",
+    "x2_dup_06.jpg",
+    "x2_dup_07.jpg",
+    "x2_dup_08.jpg",
+    "x2_dup_09.jpg",
+    "x2_dup_10.jpg",
+    "x2_dup_11.jpg"
+  ],
+  "expected_winner": "x2_dup_11.jpg"
+}

@@ -1,0 +1,9 @@
+{
+  "scenario": "F7",
+  "description": "No conflicts - metadata matches",
+  "images": [
+    "f7_a.jpg",
+    "f7_b.jpg"
+  ],
+  "expected_winner": "f7_a.jpg"
+}

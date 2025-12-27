@@ -1,0 +1,9 @@
+{
+  "scenario": "F6",
+  "description": "Multiple conflicts - GPS, camera, timezone all differ",
+  "images": [
+    "f6_a.jpg",
+    "f6_b.jpg"
+  ],
+  "expected_winner": "f6_a.jpg"
+}

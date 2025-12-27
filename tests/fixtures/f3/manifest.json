@@ -1,0 +1,9 @@
+{
+  "scenario": "F3",
+  "description": "Timezone conflict - UTC vs PST",
+  "images": [
+    "f3_tz_a.jpg",
+    "f3_tz_b.jpg"
+  ],
+  "expected_winner": "f3_tz_a.jpg"
+}

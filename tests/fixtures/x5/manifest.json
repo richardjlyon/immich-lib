@@ -1,0 +1,9 @@
+{
+  "scenario": "X5",
+  "description": "Video duplicates - HD vs SD",
+  "images": [
+    "x5_video_hd.mp4",
+    "x5_video_sd.mp4"
+  ],
+  "expected_winner": "x5_video_hd.mp4"
+}

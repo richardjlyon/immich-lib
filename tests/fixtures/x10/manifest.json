@@ -1,0 +1,9 @@
+{
+  "scenario": "X10",
+  "description": "Very old date (1985) - film scan scenario",
+  "images": [
+    "x10_old.jpg",
+    "x10_scan.jpg"
+  ],
+  "expected_winner": "x10_old.jpg"
+}

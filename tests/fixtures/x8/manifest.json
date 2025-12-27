@@ -1,0 +1,8 @@
+{
+  "scenario": "X8",
+  "description": "RAW vs JPEG - same dimensions",
+  "images": [
+    "x8_photo.jpg"
+  ],
+  "expected_winner": "x8_photo.cr3"
+}
