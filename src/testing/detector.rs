@@ -523,33 +523,12 @@ fn detect_edge_case_scenarios(
             });
         }
 
-        // X6: HEIC
-        if lowercase.ends_with(".heic") || lowercase.ends_with(".heif") {
-            matches.push(ScenarioMatch {
-                scenario: TestScenario::X6Heic,
-                duplicate_id: dup_id.to_string(),
-                details: format!("HEIC: {}", filename),
-            });
-        }
-
         // X7: PNG
         if lowercase.ends_with(".png") {
             matches.push(ScenarioMatch {
                 scenario: TestScenario::X7Png,
                 duplicate_id: dup_id.to_string(),
                 details: format!("PNG: {}", filename),
-            });
-        }
-
-        // X8: RAW files
-        let raw_extensions = [
-            ".raw", ".cr2", ".cr3", ".nef", ".arw", ".orf", ".rw2", ".dng", ".raf", ".pef",
-        ];
-        if raw_extensions.iter().any(|ext| lowercase.ends_with(ext)) {
-            matches.push(ScenarioMatch {
-                scenario: TestScenario::X8Raw,
-                duplicate_id: dup_id.to_string(),
-                details: format!("RAW: {}", filename),
             });
         }
 

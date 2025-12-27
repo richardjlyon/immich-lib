@@ -72,12 +72,8 @@ pub enum TestScenario {
     X4SpecialCharsFilename,
     /// Video duplicates
     X5Video,
-    /// HEIC files
-    X6Heic,
     /// PNG files (limited EXIF)
     X7Png,
-    /// RAW files
-    X8Raw,
     /// Unicode in description
     X9UnicodeDescription,
     /// Very old date (<1990)
@@ -122,9 +118,7 @@ impl TestScenario {
             Self::X3LargeFile,
             Self::X4SpecialCharsFilename,
             Self::X5Video,
-            Self::X6Heic,
             Self::X7Png,
-            Self::X8Raw,
             Self::X9UnicodeDescription,
             Self::X10VeryOldDate,
             Self::X11FutureDate,
@@ -162,9 +156,7 @@ impl TestScenario {
             Self::X3LargeFile => "x3",
             Self::X4SpecialCharsFilename => "x4",
             Self::X5Video => "x5",
-            Self::X6Heic => "x6",
             Self::X7Png => "x7",
-            Self::X8Raw => "x8",
             Self::X9UnicodeDescription => "x9",
             Self::X10VeryOldDate => "x10",
             Self::X11FutureDate => "x11",
@@ -202,9 +194,7 @@ impl TestScenario {
             | Self::X3LargeFile
             | Self::X4SpecialCharsFilename
             | Self::X5Video
-            | Self::X6Heic
             | Self::X7Png
-            | Self::X8Raw
             | Self::X9UnicodeDescription
             | Self::X10VeryOldDate
             | Self::X11FutureDate => "Edge Cases",
@@ -243,9 +233,7 @@ impl fmt::Display for TestScenario {
             Self::X3LargeFile => "X3: Large file (>50MB)",
             Self::X4SpecialCharsFilename => "X4: Special chars in filename",
             Self::X5Video => "X5: Video",
-            Self::X6Heic => "X6: HEIC",
             Self::X7Png => "X7: PNG",
-            Self::X8Raw => "X8: RAW",
             Self::X9UnicodeDescription => "X9: Unicode description",
             Self::X10VeryOldDate => "X10: Very old date (<1990)",
             Self::X11FutureDate => "X11: Future date",

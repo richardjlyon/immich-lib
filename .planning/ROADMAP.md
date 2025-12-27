@@ -90,7 +90,11 @@ Plans:
 - [x] 06-03: Test Image Generator - create synthetic images with controlled EXIF
 - [x] 06-03.1: Real Image Fixture Refactor (INSERTED) - use open-license photos for CLIP compatibility
 - [x] 06-04: Docker Test Environment - Immich stack + seed/snapshot/reset (1 plan)
-- [ ] 06-05: Integration Test Suite - Rust tests for all scenarios
+- [ ] 06-05: Integration Test Suite - Rust tests for all scenarios (4 plans)
+  - [x] 06-05-01: Test Harness ✓
+  - [x] 06-05-02: Winner/Consolidation Tests ✓
+  - [x] 06-05.2: Unique Base Images (INSERTED) - 32 unique photos for scenario isolation ✓
+  - [ ] 06-05-03: Edge Case Tests (F1-F7, X1-X5, X7, X9-X11)
 
 ### Phase 7: Live Instance Validation (Future)
 **Goal**: Validate against real duplicates in cloned instance before production use
@@ -113,5 +117,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Metadata Scoring | 1/1 | Complete | 2025-12-26 |
 | 4. Analysis Stage | 1/1 | Complete | 2025-12-26 |
 | 5. Execution Stage | 4/4 | Complete | 2025-12-26 |
-| 6. Synthetic Integration Tests | 5/6 | In progress | - |
+| 6. Synthetic Integration Tests | 10/11 | In progress | - |
 | 7. Live Instance Validation | 0/2 | Future | - |

@@ -19,18 +19,18 @@
 ## Current Position
 
 Phase: 6 of 7 (Synthetic Integration Tests)
-Plan: 1 of 3 in 06-05 section (7 of 8 total phase plans)
+Plan: 10 of 11 in current phase
 Status: In progress
-Last activity: 2025-12-27 - Completed 06-05-01-PLAN.md (Test Harness)
+Last activity: 2025-12-27 - Completed 06-05.2-01-PLAN.md
 
-Progress: █████████████████░ 94% (17/18 plans)
+Progress: █████████████████░░ 91% (10/11 phase plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 19
 - Average duration: 12 min
-- Total execution time: 198 min
+- Total execution time: 228 min
 
 **By Phase:**
 
@@ -41,11 +41,11 @@ Progress: █████████████████░ 94% (17/18 plan
 | 3 | 1/1 | 3 min | 3 min |
 | 4 | 1/1 | 5 min | 5 min |
 | 5 | 4/4 | 81 min | 20 min |
-| 6 | 8/8 | 124 min | 16 min |
+| 6 | 10/11 | 154 min | 15 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-03-02 (8 min), 06-03-03 (22 min), 06-03.1-01 (25 min), 06-04-01 (45 min), 06-05-01 (8 min)
-- Trend: Test infrastructure setup went smoothly
+- Last 5 plans: 06-03.1-01 (25 min), 06-04-01 (45 min), 06-05-01 (8 min), 06-05-02 (12 min), 06-05.2-01 (18 min)
+- Trend: Integration test infrastructure complete, fixture isolation fixed
 
 *Updated after each plan completion*
 
@@ -93,6 +93,18 @@ Progress: █████████████████░ 94% (17/18 plan
 | 06-05-01 | reqwest::blocking for tests | Simpler than async, avoids tokio runtime in tests |
 | 06-05-01 | 120s duplicate timeout | ML processing varies, needs generous timeout |
 | 06-05-01 | 5s poll interval | Balance responsiveness vs API load |
+| 06-05-02 | Separate test functions | Each test does own setup/teardown, avoids shared state |
+| 06-05-02 | ScenarioResult for reporting | Clean separation of test execution and result reporting |
+| 06-05-02 | Warn not fail for missing groups | Immich may not detect all synthetic pairs as duplicates |
+| 06-05.2-01 | Remove X6/X8 over stubbing | Can't generate valid HEIC/RAW without proprietary encoders |
+| 06-05.2-01 | Lorem Picsum for base images | Direct image downloads, Unsplash Source was returning HTML |
+| 06-05.2-01 | Seed-based URLs for reproducibility | Ensures same unique images if regenerated |
+
+### Roadmap Evolution
+
+| Date | Change | Reason |
+|------|--------|--------|
+| 2025-12-27 | Inserted 06-05.2 after 06-05-02 | Base image reuse causes CLIP to group unrelated scenarios together |
 
 ### Deferred Issues
 
@@ -112,6 +124,6 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-27
-Stopped at: Completed 06-05-01-PLAN.md (Integration Test Harness)
-Resume file: .planning/phases/06-synthetic-integration-tests/06-05-02-PLAN.md (next)
-Note: Test harness ready with setup/teardown/wait_for_duplicates. Manifest parser and assertions ready. Next: Winner selection tests (06-05-02).
+Stopped at: Completed 06-05.2-01-PLAN.md
+Resume file: None
+Note: Ready for 06-05-03 (edge case tests). Run `/gsd:plan-phase 06-05-03` or continue to next plan.
