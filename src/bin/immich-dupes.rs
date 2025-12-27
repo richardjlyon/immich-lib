@@ -105,6 +105,17 @@ enum Commands {
         #[arg(long)]
         scenario: Option<String>,
     },
+
+    /// Restore backed-up files by uploading them to Immich
+    Restore {
+        /// Directory containing backup files from execute command
+        #[arg(short, long)]
+        backup_dir: PathBuf,
+
+        /// Preview what would be restored without uploading
+        #[arg(long, default_value = "false")]
+        dry_run: bool,
+    },
 }
 
 /// Report containing analysis results for all duplicate groups.
@@ -258,6 +269,11 @@ async fn main() -> Result<()> {
         }
         Commands::GenerateFixtures { output_dir, scenario } => {
             run_generate_fixtures(&output_dir, scenario.as_deref())?;
+        }
+        Commands::Restore { backup_dir, dry_run } => {
+            let url = args.url.as_ref().context("IMMICH_URL is required for restore command")?;
+            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for restore command")?;
+            run_restore(url, api_key, &backup_dir, dry_run).await?;
         }
     }
 
@@ -900,6 +916,99 @@ fn run_generate_fixtures(output_dir: &PathBuf, scenario_filter: Option<&str>) ->
         println!("  Failed: {}", failed_count);
     }
     println!("  Output directory: {}", output_dir.display());
+
+    Ok(())
+}
+
+/// Known media file extensions for filtering backup directory
+const MEDIA_EXTENSIONS: &[&str] = &[
+    "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "tiff", "tif", "raw",
+    "mp4", "mov", "avi", "webm", "mkv", "m4v", "wmv", "flv", "3gp",
+];
+
+async fn run_restore(url: &str, api_key: &str, backup_dir: &PathBuf, dry_run: bool) -> Result<()> {
+    println!("Restoring from: {}", backup_dir.display());
+    println!();
+
+    // Scan backup directory for media files
+    let entries = std::fs::read_dir(backup_dir)
+        .with_context(|| format!("Failed to read backup directory: {}", backup_dir.display()))?;
+
+    let mut media_files: Vec<PathBuf> = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Skip directories and non-media files
+        if path.is_dir() {
+            continue;
+        }
+
+        if let Some(ext) = path.extension().and_then(|e| e.to_str())
+            && MEDIA_EXTENSIONS.contains(&ext.to_lowercase().as_str())
+        {
+            media_files.push(path);
+        }
+    }
+
+    if media_files.is_empty() {
+        println!("No media files found in backup directory.");
+        return Ok(());
+    }
+
+    // Sort for consistent ordering
+    media_files.sort();
+
+    println!("Found {} files to restore", media_files.len());
+    println!();
+
+    if dry_run {
+        println!("DRY RUN - No files will be uploaded");
+        println!();
+        for (i, path) in media_files.iter().enumerate() {
+            let filename = path.file_name().unwrap_or_default().to_string_lossy();
+            println!("[{}/{}] Would restore: {}", i + 1, media_files.len(), filename);
+        }
+        println!();
+        println!("Dry run complete: {} files would be restored", media_files.len());
+        return Ok(());
+    }
+
+    // Create client and upload files
+    let client = ImmichClient::new(url, api_key).context("Failed to create Immich client")?;
+
+    let mut success_count = 0;
+    let mut failure_count = 0;
+    let total = media_files.len();
+
+    for (i, path) in media_files.iter().enumerate() {
+        let filename = path.file_name().unwrap_or_default().to_string_lossy();
+        print!("[{}/{}] Uploading {}... ", i + 1, total, filename);
+        std::io::stdout().flush()?;
+
+        match client.upload_asset(path).await {
+            Ok(response) => {
+                success_count += 1;
+                if response.duplicate {
+                    println!("OK (duplicate detected)");
+                } else {
+                    println!("OK (id: {})", response.id);
+                }
+            }
+            Err(e) => {
+                failure_count += 1;
+                println!("FAILED: {}", e);
+            }
+        }
+    }
+
+    println!();
+    println!("Restore complete: {} uploaded, {} failed", success_count, failure_count);
+
+    if failure_count > 0 {
+        println!();
+        println!("WARNING: {} files failed to upload. Check errors above.", failure_count);
+    }
 
     Ok(())
 }

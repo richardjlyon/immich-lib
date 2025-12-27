@@ -1,9 +1,11 @@
 //! HTTP client wrapper for the Immich API.
 
+use chrono::{DateTime, Utc};
 use futures::StreamExt;
 use reqwest::header::{HeaderMap, HeaderValue, InvalidHeaderValue};
+use reqwest::multipart::{Form, Part};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -11,6 +13,17 @@ use url::Url;
 
 use crate::error::{ImmichError, Result};
 use crate::models::{AssetResponse, DuplicateGroup};
+
+/// Response from the Immich upload endpoint.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadResponse {
+    /// The ID of the newly created asset
+    pub id: String,
+    /// Whether this was a duplicate of an existing asset
+    #[serde(default)]
+    pub duplicate: bool,
+}
 
 /// Client for interacting with the Immich REST API.
 ///
@@ -263,6 +276,94 @@ impl ImmichClient {
         }
 
         Ok(())
+    }
+
+    /// Uploads a file to Immich as a new asset.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - Path to the file to upload
+    ///
+    /// # Returns
+    ///
+    /// Information about the uploaded asset including its new ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The file cannot be read
+    /// - The HTTP request fails
+    /// - The server returns an error response
+    pub async fn upload_asset(&self, file_path: &Path) -> Result<UploadResponse> {
+        // Read file content
+        let file_content = tokio::fs::read(file_path).await?;
+
+        // Extract filename - strip asset ID prefix if present (format: {uuid}_{original})
+        let original_filename = file_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|name| {
+                // Check if filename starts with UUID pattern (8-4-4-4-12 chars + underscore)
+                if name.len() > 37 && name.chars().nth(36) == Some('_') {
+                    // Check if first 36 chars look like a UUID
+                    let prefix = &name[..36];
+                    if prefix.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+                        return name[37..].to_string();
+                    }
+                }
+                name.to_string()
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+
+        // Get file modification time for timestamps
+        let file_time = tokio::fs::metadata(file_path)
+            .await
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .map(DateTime::<Utc>::from)
+            .unwrap_or_else(Utc::now);
+
+        let file_time_str = file_time.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+
+        // Determine MIME type from extension
+        let mime_type = match file_path.extension().and_then(|e| e.to_str()) {
+            Some("jpg") | Some("jpeg") => "image/jpeg",
+            Some("png") => "image/png",
+            Some("gif") => "image/gif",
+            Some("webp") => "image/webp",
+            Some("heic") | Some("heif") => "image/heic",
+            Some("mp4") => "video/mp4",
+            Some("mov") => "video/quicktime",
+            Some("avi") => "video/x-msvideo",
+            Some("webm") => "video/webm",
+            _ => "application/octet-stream",
+        };
+
+        // Build multipart form
+        let file_part = Part::bytes(file_content)
+            .file_name(original_filename.clone())
+            .mime_str(mime_type)?;
+
+        let form = Form::new()
+            .part("assetData", file_part)
+            .text("deviceAssetId", format!("restore-{}", uuid::Uuid::new_v4()))
+            .text("deviceId", "immich-dupes-restore")
+            .text("fileCreatedAt", file_time_str.clone())
+            .text("fileModifiedAt", file_time_str);
+
+        let url = self.base_url.join("/api/assets")?;
+        let response = self.client.post(url).multipart(form).send().await?;
+
+        let status = response.status();
+        if status.is_success() {
+            Ok(response.json().await?)
+        } else {
+            let body = response.text().await.unwrap_or_default();
+            Err(ImmichError::Api {
+                status: status.as_u16(),
+                message: body,
+            })
+        }
     }
 
     /// Handles an HTTP response, parsing success responses or extracting error details.

@@ -26,7 +26,7 @@ pub mod models;
 pub mod scoring;
 pub mod testing;
 
-pub use client::ImmichClient;
+pub use client::{ImmichClient, UploadResponse};
 pub use error::{ImmichError, Result};
 pub use executor::Executor;
 pub use scoring::{detect_conflicts, DuplicateAnalysis, MetadataConflict, MetadataScore, ScoredAsset};

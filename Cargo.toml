@@ -14,7 +14,7 @@ name = "immich-dupes"
 path = "src/bin/immich-dupes.rs"
 
 [dependencies]
-reqwest = { version = "0.12", features = ["json", "stream", "blocking"] }
+reqwest = { version = "0.12", features = ["json", "stream", "blocking", "multipart"] }
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -30,6 +30,7 @@ nonzero_ext = "0.3"
 clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
 dotenvy = "0.15"
+uuid = { version = "1", features = ["v4"] }
 
 # Fixture generation
 image = "0.25"

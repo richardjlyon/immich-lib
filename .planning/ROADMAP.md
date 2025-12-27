@@ -97,16 +97,17 @@ Plans:
   - [x] 06-05.2: Unique Base Images (INSERTED) - 32 unique photos for scenario isolation ✓
   - [x] 06-05-03: Edge Case Tests - pivoted to recorded fixture unit tests ✓
 
-### Phase 7: Live Instance Validation
+### Phase 7: Live Instance Validation ✓
 **Goal**: Validate against real duplicates in cloned instance before production use
 **Depends on**: Phase 6
 **Note**: Personal validation phase, uses Docker test instance
-**Status**: In progress
+**Plans**: 3
+**Completed**: 2025-12-27
 
 Plans:
 - [x] 07-01: Validation Runner - full workflow against Docker Immich ✓
 - [x] 07-02: End-State Verification - verify all surviving images ✓
-- [ ] 07-03: Restore Command - re-upload backed-up files to Immich
+- [x] 07-03: Restore Command - re-upload backed-up files to Immich ✓
 
 ## Progress
 
@@ -121,4 +122,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Analysis Stage | 1/1 | Complete | 2025-12-26 |
 | 5. Execution Stage | 4/4 | Complete | 2025-12-26 |
 | 6. Synthetic Integration Tests | 11/11 | Complete | 2025-12-27 |
-| 7. Live Instance Validation | 2/3 | In progress | - |
+| 7. Live Instance Validation | 3/3 | Complete | 2025-12-27 |
