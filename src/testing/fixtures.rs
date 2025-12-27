@@ -3,6 +3,11 @@
 //! Each fixture defines the images, metadata, and expected outcomes
 //! for integration testing. All images are created by transforming
 //! real base photos to ensure CLIP-based duplicate detection works.
+//!
+//! Strategy for CLIP detection:
+//! - Winner: 100% scale, 95% quality (larger dimensions, larger file)
+//! - Loser: 99% scale, 60% quality (slightly smaller, smaller file)
+//! This maintains visual similarity for CLIP while giving clear dimension winner.
 
 use chrono::{TimeZone, Utc};
 
@@ -73,15 +78,19 @@ fn w1_clear_dimension_winner() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "w1_large.jpg",
-                TransformSpec::new("base_w1.jpg").with_scale(100),
+                TransformSpec::new("base_w1.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "w1_small.jpg",
-                TransformSpec::new("base_w1.jpg").with_scale(50),
+                TransformSpec::new("base_w1.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 0,
-        description: "Larger dimensions should win (100% vs 50% scale)".into(),
+        description: "Larger dimensions should win (100% vs 99% scale)".into(),
     }
 }
 
@@ -93,13 +102,13 @@ fn w2_same_dimensions_different_size() -> ScenarioFixture {
             TestImage::new(
                 "w2_a.jpg",
                 TransformSpec::new("base_w2.jpg")
-                    .with_scale(75)
+                    .with_scale(100)
                     .with_quality(95),
             ),
             TestImage::new(
                 "w2_b.jpg",
                 TransformSpec::new("base_w2.jpg")
-                    .with_scale(75)
+                    .with_scale(100)
                     .with_quality(60),
             ),
         ],
@@ -115,15 +124,23 @@ fn w3_same_dimensions_same_size() -> ScenarioFixture {
             TestImage::new(
                 "w3_a.jpg",
                 TransformSpec::new("base_w3.jpg")
-                    .with_scale(60)
+                    .with_scale(100)
                     .with_quality(85),
-            ),
+            )
+            .with_exif(ExifSpec {
+                description: Some("W3 variant A".into()),
+                ..Default::default()
+            }),
             TestImage::new(
                 "w3_b.jpg",
                 TransformSpec::new("base_w3.jpg")
-                    .with_scale(60)
+                    .with_scale(100)
                     .with_quality(85),
-            ),
+            )
+            .with_exif(ExifSpec {
+                description: Some("W3 variant B".into()),
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Identical dimensions and size - first wins".into(),
@@ -136,12 +153,15 @@ fn w4_some_missing_dimensions() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "w4_with_dims.jpg",
-                TransformSpec::new("base_w4.jpg").with_scale(80),
+                TransformSpec::new("base_w4.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "w4_no_dims.jpg",
                 TransformSpec::new("base_w4.jpg")
-                    .with_scale(80)
+                    .with_scale(99)
+                    .with_quality(60)
                     .without_dimensions(),
             ),
         ],
@@ -157,12 +177,15 @@ fn w5_only_one_has_dimensions() -> ScenarioFixture {
             TestImage::new(
                 "w5_no_dims.jpg",
                 TransformSpec::new("base_w5.jpg")
-                    .with_scale(70)
+                    .with_scale(100)
+                    .with_quality(95)
                     .without_dimensions(),
             ),
             TestImage::new(
                 "w5_with_dims.jpg",
-                TransformSpec::new("base_w5.jpg").with_scale(50),
+                TransformSpec::new("base_w5.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 1, // second has dimensions
@@ -177,13 +200,15 @@ fn w6_all_missing_dimensions() -> ScenarioFixture {
             TestImage::new(
                 "w6_a.jpg",
                 TransformSpec::new("base_w6.jpg")
-                    .with_scale(60)
+                    .with_scale(100)
+                    .with_quality(95)
                     .without_dimensions(),
             ),
             TestImage::new(
                 "w6_b.jpg",
                 TransformSpec::new("base_w6.jpg")
-                    .with_scale(60)
+                    .with_scale(99)
+                    .with_quality(60)
                     .without_dimensions(),
             ),
         ],
@@ -198,15 +223,21 @@ fn w7_three_plus_duplicates() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "w7_small.jpg",
-                TransformSpec::new("base_w7.jpg").with_scale(30),
+                TransformSpec::new("base_w7.jpg")
+                    .with_scale(97)
+                    .with_quality(50),
             ),
             TestImage::new(
                 "w7_large.jpg",
-                TransformSpec::new("base_w7.jpg").with_scale(100),
+                TransformSpec::new("base_w7.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "w7_medium.jpg",
-                TransformSpec::new("base_w7.jpg").with_scale(60),
+                TransformSpec::new("base_w7.jpg")
+                    .with_scale(98)
+                    .with_quality(70),
             ),
         ],
         expected_winner_index: 1, // largest
@@ -221,15 +252,19 @@ fn w8_same_pixels_different_aspect() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "w8_wide.jpg",
-                TransformSpec::new("base_w8.jpg").with_size(2000, 1000),
+                TransformSpec::new("base_w8.jpg")
+                    .with_size(600, 400)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "w8_tall.jpg",
-                TransformSpec::new("base_w8.jpg").with_size(1000, 2000),
+                TransformSpec::new("base_w8.jpg")
+                    .with_size(594, 396)
+                    .with_quality(60),
             ),
         ],
-        expected_winner_index: 0, // first on tie
-        description: "Same pixel count, different aspect - first wins".into(),
+        expected_winner_index: 0, // first has more pixels
+        description: "Similar pixel count, different aspect - larger wins".into(),
     }
 }
 
@@ -241,11 +276,15 @@ fn c1_winner_lacks_gps_loser_has() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "c1_winner_no_gps.jpg",
-                TransformSpec::new("base_c1.jpg").with_scale(100),
+                TransformSpec::new("base_c1.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "c1_loser_has_gps.jpg",
-                TransformSpec::new("base_c1.jpg").with_scale(50),
+                TransformSpec::new("base_c1.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 gps: Some((51.5074, -0.1278)), // London
@@ -263,11 +302,15 @@ fn c2_winner_lacks_datetime_loser_has() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "c2_winner_no_dt.jpg",
-                TransformSpec::new("base_c2.jpg").with_scale(100),
+                TransformSpec::new("base_c2.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "c2_loser_has_dt.jpg",
-                TransformSpec::new("base_c2.jpg").with_scale(50),
+                TransformSpec::new("base_c2.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 datetime: Some(Utc.with_ymd_and_hms(2024, 6, 15, 14, 30, 0).unwrap()),
@@ -285,11 +328,15 @@ fn c3_winner_lacks_description_loser_has() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "c3_winner_no_desc.jpg",
-                TransformSpec::new("base_c3.jpg").with_scale(100),
+                TransformSpec::new("base_c3.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "c3_loser_has_desc.jpg",
-                TransformSpec::new("base_c3.jpg").with_scale(50),
+                TransformSpec::new("base_c3.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 description: Some("Delicious salad".into()),
@@ -307,11 +354,15 @@ fn c4_winner_lacks_all_loser_has_all() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "c4_winner_bare.jpg",
-                TransformSpec::new("base_c4.jpg").with_scale(100),
+                TransformSpec::new("base_c4.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "c4_loser_rich.jpg",
-                TransformSpec::new("base_c4.jpg").with_scale(50),
+                TransformSpec::new("base_c4.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 gps: Some((40.7128, -74.0060)), // NYC
@@ -334,7 +385,9 @@ fn c5_both_have_gps() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "c5_a_gps.jpg",
-                TransformSpec::new("base_c5.jpg").with_scale(100),
+                TransformSpec::new("base_c5.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 gps,
@@ -342,7 +395,9 @@ fn c5_both_have_gps() -> ScenarioFixture {
             }),
             TestImage::new(
                 "c5_b_gps.jpg",
-                TransformSpec::new("base_c5.jpg").with_scale(50),
+                TransformSpec::new("base_c5.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 gps,
@@ -360,11 +415,15 @@ fn c6_multiple_losers_contribute() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "c6_winner.jpg",
-                TransformSpec::new("base_c6.jpg").with_scale(100),
+                TransformSpec::new("base_c6.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "c6_loser_gps.jpg",
-                TransformSpec::new("base_c6.jpg").with_scale(50),
+                TransformSpec::new("base_c6.jpg")
+                    .with_scale(99)
+                    .with_quality(65),
             )
             .with_exif(ExifSpec {
                 gps: Some((35.6762, 139.6503)), // Tokyo
@@ -372,7 +431,9 @@ fn c6_multiple_losers_contribute() -> ScenarioFixture {
             }),
             TestImage::new(
                 "c6_loser_dt.jpg",
-                TransformSpec::new("base_c6.jpg").with_scale(30),
+                TransformSpec::new("base_c6.jpg")
+                    .with_scale(98)
+                    .with_quality(55),
             )
             .with_exif(ExifSpec {
                 datetime: Some(Utc.with_ymd_and_hms(2024, 3, 20, 9, 0, 0).unwrap()),
@@ -390,11 +451,15 @@ fn c7_no_loser_has_needed() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "c7_winner.jpg",
-                TransformSpec::new("base_c7.jpg").with_scale(100),
+                TransformSpec::new("base_c7.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "c7_loser.jpg",
-                TransformSpec::new("base_c7.jpg").with_scale(50),
+                TransformSpec::new("base_c7.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 0,
@@ -408,7 +473,9 @@ fn c8_winner_has_everything() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "c8_winner_full.jpg",
-                TransformSpec::new("base_c8.jpg").with_scale(100),
+                TransformSpec::new("base_c8.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 gps: Some((37.7749, -122.4194)), // SF
@@ -420,7 +487,9 @@ fn c8_winner_has_everything() -> ScenarioFixture {
             }),
             TestImage::new(
                 "c8_loser_bare.jpg",
-                TransformSpec::new("base_c8.jpg").with_scale(50),
+                TransformSpec::new("base_c8.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 0,
@@ -436,7 +505,9 @@ fn f1_gps_conflict() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "f1_london.jpg",
-                TransformSpec::new("base_f1.jpg").with_scale(100),
+                TransformSpec::new("base_f1.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 gps: Some((51.5074, -0.1278)), // London
@@ -444,7 +515,9 @@ fn f1_gps_conflict() -> ScenarioFixture {
             }),
             TestImage::new(
                 "f1_paris.jpg",
-                TransformSpec::new("base_f1.jpg").with_scale(50),
+                TransformSpec::new("base_f1.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 gps: Some((48.8566, 2.3522)), // Paris
@@ -462,7 +535,9 @@ fn f2_gps_within_threshold() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "f2_pos_a.jpg",
-                TransformSpec::new("base_f2.jpg").with_scale(100),
+                TransformSpec::new("base_f2.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 gps: Some((51.50740, -0.12780)),
@@ -470,7 +545,9 @@ fn f2_gps_within_threshold() -> ScenarioFixture {
             }),
             TestImage::new(
                 "f2_pos_b.jpg",
-                TransformSpec::new("base_f2.jpg").with_scale(50),
+                TransformSpec::new("base_f2.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 gps: Some((51.50745, -0.12785)), // ~5m away
@@ -488,7 +565,9 @@ fn f3_timezone_conflict() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "f3_tz_a.jpg",
-                TransformSpec::new("base_f3.jpg").with_scale(100),
+                TransformSpec::new("base_f3.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 timezone: Some("+00:00".into()), // UTC
@@ -496,7 +575,9 @@ fn f3_timezone_conflict() -> ScenarioFixture {
             }),
             TestImage::new(
                 "f3_tz_b.jpg",
-                TransformSpec::new("base_f3.jpg").with_scale(50),
+                TransformSpec::new("base_f3.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 timezone: Some("-08:00".into()), // PST
@@ -514,7 +595,9 @@ fn f4_camera_conflict() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "f4_canon.jpg",
-                TransformSpec::new("base_f4.jpg").with_scale(100),
+                TransformSpec::new("base_f4.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 camera_make: Some("Canon".into()),
@@ -523,7 +606,9 @@ fn f4_camera_conflict() -> ScenarioFixture {
             }),
             TestImage::new(
                 "f4_nikon.jpg",
-                TransformSpec::new("base_f4.jpg").with_scale(50),
+                TransformSpec::new("base_f4.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 camera_make: Some("Nikon".into()),
@@ -542,7 +627,9 @@ fn f5_capture_time_conflict() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "f5_morning.jpg",
-                TransformSpec::new("base_f5.jpg").with_scale(100),
+                TransformSpec::new("base_f5.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 datetime: Some(Utc.with_ymd_and_hms(2024, 1, 15, 8, 0, 0).unwrap()),
@@ -550,7 +637,9 @@ fn f5_capture_time_conflict() -> ScenarioFixture {
             }),
             TestImage::new(
                 "f5_evening.jpg",
-                TransformSpec::new("base_f5.jpg").with_scale(50),
+                TransformSpec::new("base_f5.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 datetime: Some(Utc.with_ymd_and_hms(2024, 1, 15, 20, 0, 0).unwrap()),
@@ -568,7 +657,9 @@ fn f6_multiple_conflicts() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "f6_a.jpg",
-                TransformSpec::new("base_f6.jpg").with_scale(100),
+                TransformSpec::new("base_f6.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 gps: Some((51.5074, -0.1278)), // London
@@ -578,7 +669,9 @@ fn f6_multiple_conflicts() -> ScenarioFixture {
             }),
             TestImage::new(
                 "f6_b.jpg",
-                TransformSpec::new("base_f6.jpg").with_scale(50),
+                TransformSpec::new("base_f6.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 gps: Some((40.7128, -74.0060)), // NYC
@@ -603,12 +696,16 @@ fn f7_no_conflicts() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "f7_a.jpg",
-                TransformSpec::new("base_f7.jpg").with_scale(100),
+                TransformSpec::new("base_f7.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(exif.clone()),
             TestImage::new(
                 "f7_b.jpg",
-                TransformSpec::new("base_f7.jpg").with_scale(50),
+                TransformSpec::new("base_f7.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(exif),
         ],
@@ -624,7 +721,9 @@ fn x1_single_asset_group() -> ScenarioFixture {
         scenario: TestScenario::X1SingleAssetGroup,
         images: vec![TestImage::new(
             "x1_single.jpg",
-            TransformSpec::new("base_x1.jpg").with_scale(80),
+            TransformSpec::new("base_x1.jpg")
+                .with_scale(100)
+                .with_quality(90),
         )],
         expected_winner_index: 0,
         description: "Single asset group - trivial case".into(),
@@ -632,11 +731,18 @@ fn x1_single_asset_group() -> ScenarioFixture {
 }
 
 fn x2_large_group() -> ScenarioFixture {
+    // Use narrow scale range (97-99%) for CLIP detection
+    // All images are very similar size, quality varies
+    let scales: [u32; 12] = [97, 97, 97, 98, 98, 98, 98, 99, 99, 99, 99, 100];
+    let qualities: [u8; 12] = [50, 55, 60, 65, 70, 75, 80, 85, 88, 91, 94, 97];
+
     let images: Vec<TestImage> = (0..12)
         .map(|i| {
             TestImage::new(
                 format!("x2_dup_{:02}.jpg", i),
-                TransformSpec::new("base_x2.jpg").with_scale(30 + i * 5),
+                TransformSpec::new("base_x2.jpg")
+                    .with_scale(scales[i])
+                    .with_quality(qualities[i]),
             )
         })
         .collect();
@@ -644,7 +750,7 @@ fn x2_large_group() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X2LargeGroup,
         images,
-        expected_winner_index: 11, // largest (30 + 11*5 = 85%)
+        expected_winner_index: 11, // last has highest scale (100%)
         description: "12 duplicates - largest should win".into(),
     }
 }
@@ -661,7 +767,9 @@ fn x3_large_file() -> ScenarioFixture {
             ),
             TestImage::new(
                 "x3_small.jpg",
-                TransformSpec::new("base_x3.jpg").with_scale(25),
+                TransformSpec::new("base_x3.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 0,
@@ -675,11 +783,15 @@ fn x4_special_chars_filename() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "x4_photo (1).jpg",
-                TransformSpec::new("base_x4.jpg").with_scale(100),
+                TransformSpec::new("base_x4.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             ),
             TestImage::new(
                 "x4_photo-copy_2024.jpg",
-                TransformSpec::new("base_x4.jpg").with_scale(50),
+                TransformSpec::new("base_x4.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 0,
@@ -715,7 +827,9 @@ fn x7_png() -> ScenarioFixture {
             ),
             TestImage::new(
                 "x7_image.jpg",
-                TransformSpec::new("base_x7.jpg").with_scale(50),
+                TransformSpec::new("base_x7.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 0,
@@ -729,7 +843,9 @@ fn x9_unicode_description() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "x9_unicode.jpg",
-                TransformSpec::new("base_x9.jpg").with_scale(100),
+                TransformSpec::new("base_x9.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 description: Some("日本の桜 🌸 Cherry blossoms".into()),
@@ -737,7 +853,9 @@ fn x9_unicode_description() -> ScenarioFixture {
             }),
             TestImage::new(
                 "x9_plain.jpg",
-                TransformSpec::new("base_x9.jpg").with_scale(50),
+                TransformSpec::new("base_x9.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 0,
@@ -751,7 +869,9 @@ fn x10_very_old_date() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "x10_old.jpg",
-                TransformSpec::new("base_x10.jpg").with_scale(80),
+                TransformSpec::new("base_x10.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 datetime: Some(Utc.with_ymd_and_hms(1985, 7, 20, 12, 0, 0).unwrap()),
@@ -759,7 +879,9 @@ fn x10_very_old_date() -> ScenarioFixture {
             }),
             TestImage::new(
                 "x10_scan.jpg",
-                TransformSpec::new("base_x10.jpg").with_scale(40),
+                TransformSpec::new("base_x10.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             ),
         ],
         expected_winner_index: 0,
@@ -773,7 +895,9 @@ fn x11_future_date() -> ScenarioFixture {
         images: vec![
             TestImage::new(
                 "x11_future.jpg",
-                TransformSpec::new("base_x11.jpg").with_scale(100),
+                TransformSpec::new("base_x11.jpg")
+                    .with_scale(100)
+                    .with_quality(95),
             )
             .with_exif(ExifSpec {
                 datetime: Some(Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0).unwrap()),
@@ -781,7 +905,9 @@ fn x11_future_date() -> ScenarioFixture {
             }),
             TestImage::new(
                 "x11_normal.jpg",
-                TransformSpec::new("base_x11.jpg").with_scale(50),
+                TransformSpec::new("base_x11.jpg")
+                    .with_scale(99)
+                    .with_quality(60),
             )
             .with_exif(ExifSpec {
                 datetime: Some(Utc.with_ymd_and_hms(2024, 6, 15, 14, 0, 0).unwrap()),

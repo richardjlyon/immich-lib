@@ -26,3 +26,8 @@ Thumbs.db
 tests/fixtures/*
 !tests/fixtures/base/
 !tests/fixtures/MANIFEST.md
+
+# Test artifacts
+analysis.json
+test-analysis.json
+test-candidates.json

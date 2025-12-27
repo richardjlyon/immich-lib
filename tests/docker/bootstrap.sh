@@ -77,6 +77,15 @@ fi
 echo "${API_KEY}" > .api_key
 chmod 600 .api_key
 
+# Step 7: Configure duplicate detection threshold for synthetic fixtures
+# Default 0.01 is too strict for scale/quality-based synthetic duplicates
+echo "Configuring duplicate detection threshold..."
+CONFIG=$(curl -s -H "x-api-key: ${API_KEY}" "${BASE_URL}/api/system-config")
+# Update maxDistance from 0.01 to 0.06 for synthetic fixture detection
+UPDATED_CONFIG=$(echo "$CONFIG" | sed 's/"maxDistance":0.01/"maxDistance":0.06/')
+curl -s -X PUT -H "x-api-key: ${API_KEY}" -H "Content-Type: application/json" \
+    -d "$UPDATED_CONFIG" "${BASE_URL}/api/system-config" > /dev/null
+
 echo ""
 echo "=== Immich Ready ==="
 echo "URL: ${BASE_URL}"
