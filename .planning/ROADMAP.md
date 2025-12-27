@@ -85,7 +85,7 @@ Plans:
 **Plans**: 5
 
 Plans:
-- [ ] 06-01: Test Candidate Finder - scan real Immich, categorize by scenario
+- [x] 06-01: Test Candidate Finder - scan real Immich, categorize by scenario
 - [ ] 06-02: Review & Refine Test Matrix - checkpoint to assess findings
 - [ ] 06-03: Test Image Generator - create synthetic images with controlled EXIF
 - [ ] 06-04: Docker Test Environment - Immich stack + seed/snapshot/reset
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Metadata Scoring | 1/1 | Complete | 2025-12-26 |
 | 4. Analysis Stage | 1/1 | Complete | 2025-12-26 |
 | 5. Execution Stage | 4/4 | Complete | 2025-12-26 |
-| 6. Synthetic Integration Tests | 0/5 | In progress | - |
+| 6. Synthetic Integration Tests | 1/5 | In progress | - |
 | 7. Live Instance Validation | 0/2 | Future | - |

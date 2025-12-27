@@ -10,6 +10,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 use immich_lib::models::ExecutionConfig;
+use immich_lib::testing::{detect_scenarios, format_report, ScenarioReport};
 use immich_lib::{DuplicateAnalysis, Executor, ImmichClient};
 
 /// Immich duplicate manager - prioritizes metadata completeness over file size
@@ -68,6 +69,21 @@ enum Commands {
         #[arg(short, long, default_value = "false")]
         yes: bool,
     },
+
+    /// Find test candidates by scanning duplicate groups and categorizing by scenario
+    FindTestCandidates {
+        /// Output format (text or json)
+        #[arg(long, default_value = "text")]
+        format: String,
+
+        /// Only show groups matching specific scenario prefix (e.g., "W1", "C", "F")
+        #[arg(long)]
+        scenario: Option<String>,
+
+        /// Output file (stdout if not specified)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 /// Report containing analysis results for all duplicate groups.
@@ -124,6 +140,14 @@ async fn main() -> Result<()> {
                 yes,
             )
             .await?;
+        }
+        Commands::FindTestCandidates {
+            format,
+            scenario,
+            output,
+        } => {
+            run_find_test_candidates(&args.url, &args.api_key, &format, scenario.as_deref(), output.as_ref())
+                .await?;
         }
     }
 
@@ -332,6 +356,68 @@ async fn run_execute(
 
     println!();
     println!("Execution report: {}", report_path.display());
+
+    Ok(())
+}
+
+async fn run_find_test_candidates(
+    url: &str,
+    api_key: &str,
+    format: &str,
+    scenario_filter: Option<&str>,
+    output: Option<&PathBuf>,
+) -> Result<()> {
+    println!("Connecting to Immich server at {}...", url);
+
+    // Create client
+    let client = ImmichClient::new(url, api_key).context("Failed to create Immich client")?;
+
+    // Fetch duplicates
+    println!("Fetching duplicate groups...");
+    let duplicates = client
+        .get_duplicates()
+        .await
+        .context("Failed to fetch duplicates from Immich")?;
+
+    println!("Analyzing {} duplicate groups for test scenarios...", duplicates.len());
+
+    // Detect scenarios for each group
+    let mut all_matches = Vec::new();
+    for group in &duplicates {
+        let matches = detect_scenarios(group);
+        all_matches.extend(matches);
+    }
+
+    // Filter by scenario prefix if specified
+    let filtered_matches = if let Some(prefix) = scenario_filter {
+        let prefix_upper = prefix.to_uppercase();
+        all_matches
+            .into_iter()
+            .filter(|m| m.scenario.to_string().to_uppercase().starts_with(&prefix_upper))
+            .collect()
+    } else {
+        all_matches
+    };
+
+    // Build report
+    let report = ScenarioReport::from_matches(filtered_matches, duplicates.len());
+
+    // Format output
+    let output_text = match format.to_lowercase().as_str() {
+        "json" => serde_json::to_string_pretty(&report)?,
+        _ => format_report(&report),
+    };
+
+    // Write output
+    if let Some(output_path) = output {
+        let mut file = File::create(output_path)
+            .with_context(|| format!("Failed to create output file: {}", output_path.display()))?;
+        file.write_all(output_text.as_bytes())?;
+        println!("\nOutput written to: {}", output_path.display());
+    } else {
+        println!();
+        println!("{}", output_text);
+    }
 
     Ok(())
 }

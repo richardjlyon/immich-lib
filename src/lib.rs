@@ -24,6 +24,7 @@ pub mod error;
 pub mod executor;
 pub mod models;
 pub mod scoring;
+pub mod testing;
 
 pub use client::ImmichClient;
 pub use error::{ImmichError, Result};
