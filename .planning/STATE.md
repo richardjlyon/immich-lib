@@ -99,6 +99,9 @@ Progress: █████████████████░░ 91% (10/11 p
 | 06-05.2-01 | Remove X6/X8 over stubbing | Can't generate valid HEIC/RAW without proprietary encoders |
 | 06-05.2-01 | Lorem Picsum for base images | Direct image downloads, Unsplash Source was returning HTML |
 | 06-05.2-01 | Seed-based URLs for reproducibility | Ensures same unique images if regenerated |
+| 06-05.2 | maxDistance=0.06 for CLIP | Default 0.01 too strict for synthetic scale/quality variations |
+| 06-05.2 | 100% vs 99% scale + quality diff | Maintains CLIP similarity while giving dimension winner |
+| 06-05.2 | W3 needs different EXIF | Identical files deduped at upload; added description metadata |
 
 ### Roadmap Evolution
 
@@ -124,6 +127,6 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-27
-Stopped at: Completed 06-05.2-01-PLAN.md
+Stopped at: Fixed CLIP detection, all 31 groups now detected
 Resume file: None
-Note: Ready for 06-05-03 (edge case tests). Run `/gsd:plan-phase 06-05-03` or continue to next plan.
+Note: Ready for 06-05-03 (edge case tests). CLIP threshold configured to 0.06 in bootstrap.sh.
