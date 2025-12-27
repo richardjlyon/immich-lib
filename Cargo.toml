@@ -31,5 +31,9 @@ clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
 dotenvy = "0.15"
 
+[dev-dependencies]
+image = "0.25"
+tempfile = "3"
+
 [[example]]
 name = "test_connection"
