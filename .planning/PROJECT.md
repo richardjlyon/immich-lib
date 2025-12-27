@@ -1,5 +1,30 @@
 # immich-lib
 
+## Current State (Updated: 2025-12-27)
+
+**Shipped:** v1.0 MVP (2025-12-27)
+**Status:** Ready for production use
+**Codebase:** 6,880 lines of Rust, reqwest/tokio/serde/clap stack
+
+### What's Working
+
+- `immich-dupes analyze` - Scans Immich duplicates, outputs scored JSON
+- `immich-dupes execute` - Downloads backups, consolidates metadata, deletes losers
+- `immich-dupes verify` - Validates end-state after execution
+- `immich-dupes restore` - Re-uploads backed-up files to Immich
+
+### Validated Against
+
+- Docker Immich instance with 31 duplicate groups
+- All winner selections correct (largest dimensions)
+- All metadata consolidations successful (GPS, timezone)
+- All backups downloaded and restorable
+
+---
+
+<details>
+<summary>Original Vision (v1.0 - Reference)</summary>
+
 ## Vision
 
 A Rust library for the Immich API focused on duplicate management, paired with a binary tool that makes intelligent decisions about which duplicate to keep. Unlike Immich's built-in de-duplication which blindly favors larger files, this tool prioritizes metadata completeness—ensuring GPS coordinates, timezone information, camera data, and other valuable EXIF data are never lost.
@@ -20,11 +45,11 @@ The user has 2000 duplicates. Manual review of each pair is impractical. But bli
 
 How we know this worked:
 
-- [ ] Library successfully authenticates and queries Immich duplicate API
-- [ ] Analysis correctly identifies metadata-richer files that Immich would discard
-- [ ] Generated JSON is complete, auditable, and human-reviewable
-- [ ] Execution downloads originals before any deletion
-- [ ] Zero metadata loss—no file with richer EXIF deleted in favor of metadata-poor alternative
+- [x] Library successfully authenticates and queries Immich duplicate API
+- [x] Analysis correctly identifies metadata-richer files that Immich would discard
+- [x] Generated JSON is complete, auditable, and human-reviewable
+- [x] Execution downloads originals before any deletion
+- [x] Zero metadata loss—no file with richer EXIF deleted in favor of metadata-poor alternative
 - [ ] Processes 2000 duplicates without manual intervention (beyond spot-checking)
 
 ## Scope
@@ -85,11 +110,13 @@ Key decisions from project exploration:
 
 Things to figure out during execution:
 
-- [ ] Immich API authentication method (API key? OAuth?)
-- [ ] Rate limiting considerations for 2000+ API calls
-- [ ] Metadata scoring weights (how much is GPS worth vs. camera info?)
-- [ ] JSON schema design for the analysis output
-- [ ] Visualizer approach (TUI with ratatui? Simple CLI table? HTML report?)
+- [x] Immich API authentication method (API key? OAuth?) → API key via x-api-key header
+- [x] Rate limiting considerations for 2000+ API calls → governor GCRA rate limiter
+- [x] Metadata scoring weights (how much is GPS worth vs. camera info?) → Weighted scoring implemented
+- [x] JSON schema design for the analysis output → AnalysisReport with DuplicateAnalysis groups
+- [ ] Visualizer approach (TUI with ratatui? Simple CLI table? HTML report?) → Deferred
 
 ---
 *Initialized: 2025-12-26*
+
+</details>
