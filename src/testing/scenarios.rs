@@ -131,6 +131,46 @@ impl TestScenario {
         ]
     }
 
+    /// Returns the short code (e.g., "w1", "c2", "f3", "x5").
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::W1ClearDimensionWinner => "w1",
+            Self::W2SameDimensionsDifferentSize => "w2",
+            Self::W3SameDimensionsSameSize => "w3",
+            Self::W4SomeMissingDimensions => "w4",
+            Self::W5OnlyOneHasDimensions => "w5",
+            Self::W6AllMissingDimensions => "w6",
+            Self::W7ThreePlusDuplicates => "w7",
+            Self::W8SamePixelsDifferentAspect => "w8",
+            Self::C1WinnerLacksGpsLoserHas => "c1",
+            Self::C2WinnerLacksDatetimeLoserHas => "c2",
+            Self::C3WinnerLacksDescriptionLoserHas => "c3",
+            Self::C4WinnerLacksAllLoserHasAll => "c4",
+            Self::C5BothHaveGps => "c5",
+            Self::C6MultipleLosersContribute => "c6",
+            Self::C7NoLoserHasNeeded => "c7",
+            Self::C8WinnerHasEverything => "c8",
+            Self::F1GpsConflict => "f1",
+            Self::F2GpsWithinThreshold => "f2",
+            Self::F3TimezoneConflict => "f3",
+            Self::F4CameraConflict => "f4",
+            Self::F5CaptureTimeConflict => "f5",
+            Self::F6MultipleConflicts => "f6",
+            Self::F7NoConflicts => "f7",
+            Self::X1SingleAssetGroup => "x1",
+            Self::X2LargeGroup => "x2",
+            Self::X3LargeFile => "x3",
+            Self::X4SpecialCharsFilename => "x4",
+            Self::X5Video => "x5",
+            Self::X6Heic => "x6",
+            Self::X7Png => "x7",
+            Self::X8Raw => "x8",
+            Self::X9UnicodeDescription => "x9",
+            Self::X10VeryOldDate => "x10",
+            Self::X11FutureDate => "x11",
+        }
+    }
+
     /// Returns the category prefix (W, C, F, or X).
     pub fn category(&self) -> &'static str {
         match self {

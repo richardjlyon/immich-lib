@@ -3,14 +3,11 @@
 //! Creates images with controlled dimensions and EXIF metadata
 //! for reproducible testing of all 34 test scenarios.
 
-use chrono::{DateTime, Utc};
-
-#[cfg(test)]
 use std::path::{Path, PathBuf};
-#[cfg(test)]
 use std::process::Command;
 
-#[cfg(test)]
+use chrono::{DateTime, Utc};
+
 use crate::error::{ImmichError, Result};
 
 /// Image properties specification.
@@ -73,7 +70,6 @@ pub struct TestImage {
 ///
 /// # Returns
 /// Path to the generated image file
-#[cfg(test)]
 pub fn generate_image(spec: &TestImage, output_dir: &Path) -> Result<PathBuf> {
     use image::{ImageBuffer, Rgb, ImageFormat};
 
@@ -89,8 +85,7 @@ pub fn generate_image(spec: &TestImage, output_dir: &Path) -> Result<PathBuf> {
 
     // Save as JPEG
     img.save_with_format(&output_path, ImageFormat::Jpeg)
-        .map_err(|e| ImmichError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        .map_err(|e| ImmichError::Io(std::io::Error::other(
             format!("Failed to save image: {}", e),
         )))?;
 
@@ -101,7 +96,6 @@ pub fn generate_image(spec: &TestImage, output_dir: &Path) -> Result<PathBuf> {
 }
 
 /// Apply EXIF metadata to an image using exiftool CLI.
-#[cfg(test)]
 fn apply_exif(path: &Path, exif: &ExifSpec, image_spec: &ImageSpec) -> Result<()> {
     let mut args: Vec<String> = vec!["-overwrite_original".to_string()];
 
@@ -156,15 +150,13 @@ fn apply_exif(path: &Path, exif: &ExifSpec, image_spec: &ImageSpec) -> Result<()
         let output = Command::new("exiftool")
             .args(&args)
             .output()
-            .map_err(|e| ImmichError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            .map_err(|e| ImmichError::Io(std::io::Error::other(
                 format!("Failed to run exiftool: {}. Is exiftool installed?", e),
             )))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(ImmichError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(ImmichError::Io(std::io::Error::other(
                 format!("exiftool failed: {}", stderr),
             )));
         }
@@ -183,7 +175,6 @@ fn apply_exif(path: &Path, exif: &ExifSpec, image_spec: &ImageSpec) -> Result<()
 ///
 /// # Returns
 /// Path to the generated video file
-#[cfg(test)]
 pub fn generate_video(filename: &str, output_dir: &Path) -> Result<PathBuf> {
     let output_path = output_dir.join(filename);
 
@@ -197,15 +188,13 @@ pub fn generate_video(filename: &str, output_dir: &Path) -> Result<PathBuf> {
             output_path.to_string_lossy().as_ref(),
         ])
         .output()
-        .map_err(|e| ImmichError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        .map_err(|e| ImmichError::Io(std::io::Error::other(
             format!("Failed to run ffmpeg: {}. Is ffmpeg installed?", e),
         )))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(ImmichError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        return Err(ImmichError::Io(std::io::Error::other(
             format!("ffmpeg failed: {}", stderr),
         )));
     }

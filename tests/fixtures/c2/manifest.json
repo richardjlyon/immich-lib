@@ -1,0 +1,9 @@
+{
+  "scenario": "C2",
+  "description": "Winner lacks datetime, loser has it",
+  "images": [
+    "c2_winner_no_dt.jpg",
+    "c2_loser_has_dt.jpg"
+  ],
+  "expected_winner": "c2_winner_no_dt.jpg"
+}

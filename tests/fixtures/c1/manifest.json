@@ -1,0 +1,9 @@
+{
+  "scenario": "C1",
+  "description": "Winner lacks GPS, loser has it - consolidate GPS",
+  "images": [
+    "c1_winner_no_gps.jpg",
+    "c1_loser_has_gps.jpg"
+  ],
+  "expected_winner": "c1_winner_no_gps.jpg"
+}

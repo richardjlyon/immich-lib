@@ -1,0 +1,9 @@
+{
+  "scenario": "W3",
+  "description": "Identical dimensions and size - first wins",
+  "images": [
+    "w3_a.jpg",
+    "w3_b.jpg"
+  ],
+  "expected_winner": "w3_a.jpg"
+}

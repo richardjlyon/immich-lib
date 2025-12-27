@@ -31,8 +31,10 @@ clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
 dotenvy = "0.15"
 
-[dev-dependencies]
+# Fixture generation
 image = "0.25"
+
+[dev-dependencies]
 tempfile = "3"
 
 [[example]]

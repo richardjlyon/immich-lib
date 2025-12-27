@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 use immich_lib::models::ExecutionConfig;
-use immich_lib::testing::{detect_scenarios, format_report, ScenarioReport};
+use immich_lib::testing::{all_fixtures, detect_scenarios, format_report, generate_image, ScenarioReport};
 use immich_lib::{DuplicateAnalysis, Executor, ImmichClient};
 
 /// Immich duplicate manager - prioritizes metadata completeness over file size
@@ -18,13 +18,13 @@ use immich_lib::{DuplicateAnalysis, Executor, ImmichClient};
 #[command(name = "immich-dupes")]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Immich server URL
-    #[arg(short, long, env = "IMMICH_URL")]
-    url: String,
+    /// Immich server URL (not required for generate-fixtures)
+    #[arg(short, long, env = "IMMICH_URL", required = false)]
+    url: Option<String>,
 
-    /// API key for authentication
-    #[arg(short, long, env = "IMMICH_API_KEY")]
-    api_key: String,
+    /// API key for authentication (not required for generate-fixtures)
+    #[arg(short, long, env = "IMMICH_API_KEY", required = false)]
+    api_key: Option<String>,
 
     #[command(subcommand)]
     command: Commands,
@@ -84,6 +84,17 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Generate synthetic test fixtures
+    GenerateFixtures {
+        /// Output directory for fixtures
+        #[arg(long, default_value = "tests/fixtures")]
+        output_dir: PathBuf,
+
+        /// Only generate specific scenario (e.g., "W1", "C3")
+        #[arg(long)]
+        scenario: Option<String>,
+    },
 }
 
 /// Report containing analysis results for all duplicate groups.
@@ -117,7 +128,9 @@ async fn main() -> Result<()> {
 
     match args.command {
         Commands::Analyze { output } => {
-            run_analyze(&args.url, &args.api_key, &output).await?;
+            let url = args.url.as_ref().context("IMMICH_URL is required for analyze command")?;
+            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for analyze command")?;
+            run_analyze(url, api_key, &output).await?;
         }
         Commands::Execute {
             input,
@@ -128,9 +141,11 @@ async fn main() -> Result<()> {
             skip_review,
             yes,
         } => {
+            let url = args.url.as_ref().context("IMMICH_URL is required for execute command")?;
+            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for execute command")?;
             run_execute(
-                &args.url,
-                &args.api_key,
+                url,
+                api_key,
                 &input,
                 &backup_dir,
                 force,
@@ -146,8 +161,13 @@ async fn main() -> Result<()> {
             scenario,
             output,
         } => {
-            run_find_test_candidates(&args.url, &args.api_key, &format, scenario.as_deref(), output.as_ref())
+            let url = args.url.as_ref().context("IMMICH_URL is required for find-test-candidates command")?;
+            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for find-test-candidates command")?;
+            run_find_test_candidates(url, api_key, &format, scenario.as_deref(), output.as_ref())
                 .await?;
+        }
+        Commands::GenerateFixtures { output_dir, scenario } => {
+            run_generate_fixtures(&output_dir, scenario.as_deref())?;
         }
     }
 
@@ -418,6 +438,120 @@ async fn run_find_test_candidates(
         println!();
         println!("{}", output_text);
     }
+
+    Ok(())
+}
+
+/// Manifest file structure for each scenario fixture
+#[derive(Debug, Serialize)]
+struct FixtureManifest {
+    scenario: String,
+    description: String,
+    images: Vec<String>,
+    expected_winner: String,
+}
+
+fn run_generate_fixtures(output_dir: &PathBuf, scenario_filter: Option<&str>) -> Result<()> {
+    println!("Loading fixture definitions...");
+
+    let fixtures = all_fixtures();
+    let total = fixtures.len();
+
+    // Filter fixtures if scenario specified
+    let fixtures: Vec<_> = if let Some(filter) = scenario_filter {
+        let filter_upper = filter.to_uppercase();
+        fixtures
+            .into_iter()
+            .filter(|f| f.scenario.to_string().to_uppercase().starts_with(&filter_upper))
+            .collect()
+    } else {
+        fixtures
+    };
+
+    if fixtures.is_empty() {
+        if let Some(filter) = scenario_filter {
+            println!("No fixtures found matching filter: {}", filter);
+        } else {
+            println!("No fixtures defined.");
+        }
+        return Ok(());
+    }
+
+    println!(
+        "Generating {} of {} fixtures...",
+        fixtures.len(),
+        total
+    );
+
+    // Create output directory if it doesn't exist
+    std::fs::create_dir_all(output_dir)
+        .with_context(|| format!("Failed to create output directory: {}", output_dir.display()))?;
+
+    let mut generated_count = 0;
+    let mut failed_count = 0;
+
+    for fixture in &fixtures {
+        let scenario_code = fixture.scenario.code();
+        let scenario_dir = output_dir.join(scenario_code);
+
+        // Create scenario subdirectory
+        std::fs::create_dir_all(&scenario_dir).with_context(|| {
+            format!(
+                "Failed to create scenario directory: {}",
+                scenario_dir.display()
+            )
+        })?;
+
+        println!("  {} - {}...", scenario_code.to_uppercase(), fixture.description);
+
+        let mut image_filenames = Vec::new();
+        let mut all_success = true;
+
+        for image in &fixture.images {
+            match generate_image(image, &scenario_dir) {
+                Ok(path) => {
+                    image_filenames.push(image.filename.clone());
+                    println!("    ✓ {}", path.file_name().unwrap_or_default().to_string_lossy());
+                }
+                Err(e) => {
+                    eprintln!("    ✗ {} - {}", image.filename, e);
+                    all_success = false;
+                }
+            }
+        }
+
+        // Write manifest
+        let manifest = FixtureManifest {
+            scenario: scenario_code.to_uppercase(),
+            description: fixture.description.clone(),
+            images: image_filenames.clone(),
+            expected_winner: fixture
+                .images
+                .get(fixture.expected_winner_index)
+                .map(|i| i.filename.clone())
+                .unwrap_or_default(),
+        };
+
+        let manifest_path = scenario_dir.join("manifest.json");
+        let manifest_file = File::create(&manifest_path)
+            .with_context(|| format!("Failed to create manifest: {}", manifest_path.display()))?;
+        serde_json::to_writer_pretty(manifest_file, &manifest)
+            .context("Failed to write manifest JSON")?;
+
+        if all_success {
+            generated_count += 1;
+        } else {
+            failed_count += 1;
+        }
+    }
+
+    println!();
+    println!("Generation complete!");
+    println!("  Successful: {}", generated_count);
+    if failed_count > 0 {
+        println!("  Failed: {}", failed_count);
+    }
+    println!("  Output directory: {}", output_dir.display());
 
     Ok(())
 }

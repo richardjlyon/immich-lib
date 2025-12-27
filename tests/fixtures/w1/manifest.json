@@ -1,0 +1,9 @@
+{
+  "scenario": "W1",
+  "description": "Larger dimensions should win (2000x1500 vs 1000x750)",
+  "images": [
+    "w1_large.jpg",
+    "w1_small.jpg"
+  ],
+  "expected_winner": "w1_large.jpg"
+}

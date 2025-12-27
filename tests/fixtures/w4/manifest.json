@@ -1,0 +1,9 @@
+{
+  "scenario": "W4",
+  "description": "Asset with dimensions beats asset without",
+  "images": [
+    "w4_with_dims.jpg",
+    "w4_no_dims.jpg"
+  ],
+  "expected_winner": "w4_with_dims.jpg"
+}

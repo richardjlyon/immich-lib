@@ -1,0 +1,9 @@
+{
+  "scenario": "W5",
+  "description": "Only second asset has dimensions - it wins",
+  "images": [
+    "w5_no_dims.jpg",
+    "w5_with_dims.jpg"
+  ],
+  "expected_winner": "w5_with_dims.jpg"
+}

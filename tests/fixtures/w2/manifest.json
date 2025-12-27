@@ -1,0 +1,9 @@
+{
+  "scenario": "W2",
+  "description": "Same dimensions - first in list wins on tie",
+  "images": [
+    "w2_a.jpg",
+    "w2_b.jpg"
+  ],
+  "expected_winner": "w2_a.jpg"
+}
