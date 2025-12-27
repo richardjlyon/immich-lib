@@ -26,6 +26,7 @@ Thumbs.db
 tests/fixtures/*
 !tests/fixtures/base/
 !tests/fixtures/MANIFEST.md
+!tests/fixtures/recorded/
 
 # Test artifacts
 analysis.json

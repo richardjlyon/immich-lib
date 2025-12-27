@@ -7,6 +7,7 @@
 //! Strategy for CLIP detection:
 //! - Winner: 100% scale, 95% quality (larger dimensions, larger file)
 //! - Loser: 99% scale, 60% quality (slightly smaller, smaller file)
+//!
 //! This maintains visual similarity for CLIP while giving clear dimension winner.
 
 use chrono::{TimeZone, Utc};

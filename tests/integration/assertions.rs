@@ -19,6 +19,7 @@ use immich_lib::DuplicateAnalysis;
 /// # Returns
 ///
 /// The matching group if found, None otherwise.
+#[allow(dead_code)]
 pub fn find_scenario_group<'a>(
     duplicates: &'a [DuplicateGroupResponse],
     manifest: &Manifest,
@@ -56,6 +57,7 @@ pub fn find_scenario_group<'a>(
 /// # Panics
 ///
 /// Panics if the winner doesn't match, with a descriptive message.
+#[allow(dead_code)]
 pub fn assert_winner_matches(analysis: &DuplicateAnalysis, expected_winner: &str) {
     let actual = &analysis.winner.filename;
 

@@ -14,6 +14,7 @@ pub struct Manifest {
     pub scenario: String,
 
     /// Human-readable description
+    #[allow(dead_code)]
     pub description: String,
 
     /// List of image filenames in this group

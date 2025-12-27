@@ -107,3 +107,36 @@ Each scenario directory contains:
   - `description`: What the scenario tests
   - `images`: List of files in the group
   - `expected_winner`: Filename of the expected winner
+
+## Recorded Fixtures
+
+The `recorded/` directory contains API responses captured from a real Immich instance.
+These enable fast unit tests without requiring Docker.
+
+### Files
+
+- `recorded/duplicates.json` - Response from `/api/duplicates` endpoint
+
+### Usage
+
+Unit tests in `tests/scoring_tests.rs` load recorded fixtures:
+```rust
+let json = include_str!("fixtures/recorded/duplicates.json");
+let groups: Vec<DuplicateGroup> = serde_json::from_str(json).unwrap();
+```
+
+### Re-recording
+
+When fixtures change or API format updates:
+```bash
+cd tests/docker
+./bootstrap.sh && ./seed-fixtures.sh
+./record-fixtures.sh
+```
+
+### Benefits
+
+- **Fast:** Tests run in ~0.01s (vs ~5 min with Docker)
+- **Reliable:** No flaky CLIP detection
+- **Real data:** Actual Immich API response structure
+- **Tests our code:** Not Immich's duplicate detection

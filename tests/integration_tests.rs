@@ -5,7 +5,7 @@
 
 mod integration;
 
-use integration::{list_scenarios, load_manifest};
+use integration::fixtures::{list_scenarios, load_manifest};
 
 /// Test that all scenario manifests can be loaded.
 #[test]

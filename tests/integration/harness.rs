@@ -37,6 +37,7 @@ pub struct DuplicateGroupResponse {
 /// Minimal asset info from duplicates API.
 #[derive(Debug, Deserialize)]
 pub struct DuplicateAsset {
+    #[allow(dead_code)]
     pub id: String,
     #[serde(rename = "originalFileName")]
     pub original_file_name: String,
@@ -160,6 +161,7 @@ impl TestHarness {
     }
 
     /// Get the fixtures directory path.
+    #[allow(dead_code)]
     pub fn fixtures_dir(&self) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests")
