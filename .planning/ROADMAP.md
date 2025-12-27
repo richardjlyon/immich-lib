@@ -78,10 +78,32 @@ Plans:
 - [x] 05-03: Execute CLI Command (2 tasks + checkpoint, interactive) ✓
 - [x] 05-04: Winner Selection Fix (3 tasks, autonomous) ✓
 
+### Phase 6: Synthetic Integration Tests
+**Goal**: Comprehensive integration tests using generated images in isolated Docker environment
+**Depends on**: Phase 5
+**Research**: Pending (6-RESEARCH.md)
+**Plans**: 5
+
+Plans:
+- [ ] 06-01: Test Candidate Finder - scan real Immich, categorize by scenario
+- [ ] 06-02: Review & Refine Test Matrix - checkpoint to assess findings
+- [ ] 06-03: Test Image Generator - create synthetic images with controlled EXIF
+- [ ] 06-04: Docker Test Environment - Immich stack + seed/snapshot/reset
+- [ ] 06-05: Integration Test Suite - Rust tests for all scenarios
+
+### Phase 7: Live Instance Validation (Future)
+**Goal**: Validate against real duplicates in cloned instance before production use
+**Depends on**: Phase 6
+**Note**: Personal validation phase, uses 06-01 finder output
+
+Plans:
+- [ ] 07-01: Instance Cloning - scripts to create isolated copy
+- [ ] 07-02: Validation Run - execute against clone, verify manually
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -90,3 +112,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Metadata Scoring | 1/1 | Complete | 2025-12-26 |
 | 4. Analysis Stage | 1/1 | Complete | 2025-12-26 |
 | 5. Execution Stage | 4/4 | Complete | 2025-12-26 |
+| 6. Synthetic Integration Tests | 0/5 | In progress | - |
+| 7. Live Instance Validation | 0/2 | Future | - |
