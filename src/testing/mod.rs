@@ -11,6 +11,6 @@ pub mod scenarios;
 
 pub use detector::detect_scenarios;
 pub use fixtures::{all_fixtures, ScenarioFixture};
-pub use generator::{generate_image, generate_video, ExifSpec, ImageSpec, TestImage};
+pub use generator::{generate_image, ExifSpec, TestImage, TransformSpec};
 pub use report::{format_report, ScenarioReport};
 pub use scenarios::{ScenarioMatch, TestScenario};

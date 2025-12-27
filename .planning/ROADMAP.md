@@ -82,13 +82,14 @@ Plans:
 **Goal**: Comprehensive integration tests using generated images in isolated Docker environment
 **Depends on**: Phase 5
 **Research**: Pending (6-RESEARCH.md)
-**Plans**: 5
+**Plans**: 6
 
 Plans:
 - [x] 06-01: Test Candidate Finder - scan real Immich, categorize by scenario
 - [x] 06-02: Review & Refine Test Matrix - checkpoint to assess findings
 - [x] 06-03: Test Image Generator - create synthetic images with controlled EXIF
-- [ ] 06-04: Docker Test Environment - Immich stack + seed/snapshot/reset
+- [x] 06-03.1: Real Image Fixture Refactor (INSERTED) - use open-license photos for CLIP compatibility
+- [ ] 06-04: Docker Test Environment - Immich stack + seed/snapshot/reset (1 plan)
 - [ ] 06-05: Integration Test Suite - Rust tests for all scenarios
 
 ### Phase 7: Live Instance Validation (Future)
@@ -112,5 +113,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Metadata Scoring | 1/1 | Complete | 2025-12-26 |
 | 4. Analysis Stage | 1/1 | Complete | 2025-12-26 |
 | 5. Execution Stage | 4/4 | Complete | 2025-12-26 |
-| 6. Synthetic Integration Tests | 3/5 | In progress | - |
+| 6. Synthetic Integration Tests | 4/6 | In progress | - |
 | 7. Live Instance Validation | 0/2 | Future | - |

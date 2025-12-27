@@ -1,9 +1,0 @@
-{
-  "scenario": "C8",
-  "description": "Winner already has all metadata - nothing to consolidate",
-  "images": [
-    "c8_winner_full.jpg",
-    "c8_loser_bare.jpg"
-  ],
-  "expected_winner": "c8_winner_full.jpg"
-}

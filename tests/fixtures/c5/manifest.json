@@ -1,9 +1,0 @@
-{
-  "scenario": "C5",
-  "description": "Both have same GPS - no consolidation needed",
-  "images": [
-    "c5_a_gps.jpg",
-    "c5_b_gps.jpg"
-  ],
-  "expected_winner": "c5_a_gps.jpg"
-}

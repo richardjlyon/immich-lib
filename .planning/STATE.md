@@ -19,11 +19,11 @@
 ## Current Position
 
 Phase: 6 of 7 (Synthetic Integration Tests)
-Plan: 5 of 5 in current phase
+Plan: 5 of 6 in current phase
 Status: In progress
-Last activity: 2025-12-27 - Completed 06-03-03-PLAN.md
+Last activity: 2025-12-27 - Completed real image fixture refactor (06-03.1)
 
-Progress: █████████████░░░ 82% (14/17 plans)
+Progress: ██████████████░░ 83% (15/18 plans)
 
 ## Performance Metrics
 
@@ -41,11 +41,11 @@ Progress: █████████████░░░ 82% (14/17 plans)
 | 3 | 1/1 | 3 min | 3 min |
 | 4 | 1/1 | 5 min | 5 min |
 | 5 | 4/4 | 81 min | 20 min |
-| 6 | 5/5 | 46 min | 9 min |
+| 6 | 6/6 | 71 min | 12 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-01 (8 min), 06-02-01 (3 min), 06-03-01 (5 min), 06-03-02 (8 min), 06-03-03 (22 min)
-- Trend: All 34 fixtures generated, ready for Docker environment
+- Last 5 plans: 06-02-01 (3 min), 06-03-01 (5 min), 06-03-02 (8 min), 06-03-03 (22 min), 06-03.1-01 (25 min)
+- Trend: Fixtures refactored to use real photos for CLIP compatibility
 
 *Updated after each plan completion*
 
@@ -87,6 +87,9 @@ Progress: █████████████░░░ 82% (14/17 plans)
 | 06-03-03 | PNG via image crate directly | Limited EXIF support acceptable for format tests |
 | 06-03-03 | Video via ffmpeg libx264 | Portable encoding for video duplicate tests |
 | 06-03-03 | HEIC/RAW return explicit errors | Better than creating invalid files with wrong extension |
+| 06-03.1-01 | Transform-only approach | User preference: simpler than dual-mode |
+| 06-03.1-01 | Same base image per group | Ensures CLIP semantic similarity for duplicate detection |
+| 06-03.1-01 | Lanczos3 filter for resizing | High-quality resize for realistic test images |
 
 ### Deferred Issues
 
@@ -106,5 +109,6 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-27
-Stopped at: Completed 06-03-03-PLAN.md (F1-F7/X1-X11 Fixtures - all 34 scenarios complete)
-Resume file: None
+Stopped at: Completed 06-03.1-01 (Real Image Fixture Refactor)
+Resume file: .planning/phases/06-synthetic-integration-tests/06-04-PLAN.md (next)
+Note: All 32 fixtures regenerated using real photo transforms. Ready for Docker test environment (06-04).

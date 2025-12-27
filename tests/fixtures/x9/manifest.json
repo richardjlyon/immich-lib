@@ -1,9 +1,0 @@
-{
-  "scenario": "X9",
-  "description": "Unicode in description - Japanese, emoji",
-  "images": [
-    "x9_unicode.jpg",
-    "x9_plain.jpg"
-  ],
-  "expected_winner": "x9_unicode.jpg"
-}

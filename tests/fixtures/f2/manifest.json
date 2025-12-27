@@ -1,9 +1,0 @@
-{
-  "scenario": "F2",
-  "description": "GPS within threshold - should NOT conflict",
-  "images": [
-    "f2_pos_a.jpg",
-    "f2_pos_b.jpg"
-  ],
-  "expected_winner": "f2_pos_a.jpg"
-}

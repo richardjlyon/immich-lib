@@ -1,9 +1,0 @@
-{
-  "scenario": "C3",
-  "description": "Winner lacks description, loser has it",
-  "images": [
-    "c3_winner_no_desc.jpg",
-    "c3_loser_has_desc.jpg"
-  ],
-  "expected_winner": "c3_winner_no_desc.jpg"
-}

@@ -1,9 +1,0 @@
-{
-  "scenario": "C7",
-  "description": "Winner lacks GPS but no loser has it either",
-  "images": [
-    "c7_winner.jpg",
-    "c7_loser.jpg"
-  ],
-  "expected_winner": "c7_winner.jpg"
-}

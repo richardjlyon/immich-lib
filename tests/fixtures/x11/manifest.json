@@ -1,9 +1,0 @@
-{
-  "scenario": "X11",
-  "description": "Future date (2030) - camera clock error scenario",
-  "images": [
-    "x11_future.jpg",
-    "x11_normal.jpg"
-  ],
-  "expected_winner": "x11_future.jpg"
-}

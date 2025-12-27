@@ -1,9 +1,0 @@
-{
-  "scenario": "W8",
-  "description": "Same pixel count, different aspect - first wins",
-  "images": [
-    "w8_wide.jpg",
-    "w8_tall.jpg"
-  ],
-  "expected_winner": "w8_wide.jpg"
-}

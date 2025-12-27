@@ -1,11 +1,12 @@
 //! Test fixture specifications for all 34 test scenarios.
 //!
-//! Each fixture defines the exact images, metadata, and expected outcomes
-//! for reproducible integration testing.
+//! Each fixture defines the images, metadata, and expected outcomes
+//! for integration testing. All images are created by transforming
+//! real base photos to ensure CLIP-based duplicate detection works.
 
 use chrono::{TimeZone, Utc};
 
-use super::generator::{ExifSpec, ImageSpec, TestImage};
+use super::generator::{ExifSpec, TestImage, TransformSpec};
 use super::scenarios::TestScenario;
 
 /// A complete test fixture for a scenario.
@@ -66,59 +67,45 @@ pub fn all_fixtures() -> Vec<ScenarioFixture> {
 }
 
 // ===== Winner Selection Scenarios =====
+// All use base_landscape.jpg with different sizes
 
 fn w1_clear_dimension_winner() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::W1ClearDimensionWinner,
         images: vec![
-            TestImage {
-                filename: "w1_large.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [255, 0, 0], // red
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w1_small.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [255, 0, 0],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "w1_large.jpg",
+                TransformSpec::new("base_landscape.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "w1_small.jpg",
+                TransformSpec::new("base_landscape.jpg").with_scale(50),
+            ),
         ],
         expected_winner_index: 0,
-        description: "Larger dimensions should win (2000x1500 vs 1000x750)".into(),
+        description: "Larger dimensions should win (100% vs 50% scale)".into(),
     }
 }
 
 fn w2_same_dimensions_different_size() -> ScenarioFixture {
+    // Same dimensions but different file size via quality
     ScenarioFixture {
         scenario: TestScenario::W2SameDimensionsDifferentSize,
         images: vec![
-            TestImage {
-                filename: "w2_a.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1920),
-                    height: Some(1080),
-                    color: [255, 128, 0], // orange
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w2_b.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1920),
-                    height: Some(1080),
-                    color: [255, 128, 0],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "w2_a.jpg",
+                TransformSpec::new("base_landscape.jpg")
+                    .with_scale(75)
+                    .with_quality(95),
+            ),
+            TestImage::new(
+                "w2_b.jpg",
+                TransformSpec::new("base_landscape.jpg")
+                    .with_scale(75)
+                    .with_quality(60),
+            ),
         ],
-        expected_winner_index: 0, // first when tied
+        expected_winner_index: 0, // first when dimensions tied
         description: "Same dimensions - first in list wins on tie".into(),
     }
 }
@@ -127,24 +114,18 @@ fn w3_same_dimensions_same_size() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::W3SameDimensionsSameSize,
         images: vec![
-            TestImage {
-                filename: "w3_a.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(1000),
-                    color: [255, 255, 0], // yellow
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w3_b.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(1000),
-                    color: [255, 255, 0],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "w3_a.jpg",
+                TransformSpec::new("base_landscape.jpg")
+                    .with_scale(60)
+                    .with_quality(85),
+            ),
+            TestImage::new(
+                "w3_b.jpg",
+                TransformSpec::new("base_landscape.jpg")
+                    .with_scale(60)
+                    .with_quality(85),
+            ),
         ],
         expected_winner_index: 0,
         description: "Identical dimensions and size - first wins".into(),
@@ -155,24 +136,16 @@ fn w4_some_missing_dimensions() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::W4SomeMissingDimensions,
         images: vec![
-            TestImage {
-                filename: "w4_with_dims.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1600),
-                    height: Some(1200),
-                    color: [0, 255, 0], // green
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w4_no_dims.jpg".into(),
-                image_spec: ImageSpec {
-                    width: None,
-                    height: None,
-                    color: [0, 255, 0],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "w4_with_dims.jpg",
+                TransformSpec::new("base_urban.jpg").with_scale(80),
+            ),
+            TestImage::new(
+                "w4_no_dims.jpg",
+                TransformSpec::new("base_urban.jpg")
+                    .with_scale(80)
+                    .without_dimensions(),
+            ),
         ],
         expected_winner_index: 0,
         description: "Asset with dimensions beats asset without".into(),
@@ -183,26 +156,18 @@ fn w5_only_one_has_dimensions() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::W5OnlyOneHasDimensions,
         images: vec![
-            TestImage {
-                filename: "w5_no_dims.jpg".into(),
-                image_spec: ImageSpec {
-                    width: None,
-                    height: None,
-                    color: [0, 128, 255], // sky blue
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w5_with_dims.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(800),
-                    height: Some(600),
-                    color: [0, 128, 255],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "w5_no_dims.jpg",
+                TransformSpec::new("base_urban.jpg")
+                    .with_scale(70)
+                    .without_dimensions(),
+            ),
+            TestImage::new(
+                "w5_with_dims.jpg",
+                TransformSpec::new("base_urban.jpg").with_scale(50),
+            ),
         ],
-        expected_winner_index: 1,
+        expected_winner_index: 1, // second has dimensions
         description: "Only second asset has dimensions - it wins".into(),
     }
 }
@@ -211,24 +176,18 @@ fn w6_all_missing_dimensions() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::W6AllMissingDimensions,
         images: vec![
-            TestImage {
-                filename: "w6_a.jpg".into(),
-                image_spec: ImageSpec {
-                    width: None,
-                    height: None,
-                    color: [0, 0, 255], // blue
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w6_b.jpg".into(),
-                image_spec: ImageSpec {
-                    width: None,
-                    height: None,
-                    color: [0, 0, 255],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "w6_a.jpg",
+                TransformSpec::new("base_urban.jpg")
+                    .with_scale(60)
+                    .without_dimensions(),
+            ),
+            TestImage::new(
+                "w6_b.jpg",
+                TransformSpec::new("base_urban.jpg")
+                    .with_scale(60)
+                    .without_dimensions(),
+            ),
         ],
         expected_winner_index: 0,
         description: "No dimensions on any - first wins".into(),
@@ -239,33 +198,18 @@ fn w7_three_plus_duplicates() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::W7ThreePlusDuplicates,
         images: vec![
-            TestImage {
-                filename: "w7_small.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(640),
-                    height: Some(480),
-                    color: [128, 0, 255], // purple
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w7_large.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(3000),
-                    height: Some(2000),
-                    color: [128, 0, 255],
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w7_medium.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1920),
-                    height: Some(1080),
-                    color: [128, 0, 255],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "w7_small.jpg",
+                TransformSpec::new("base_portrait.jpg").with_scale(30),
+            ),
+            TestImage::new(
+                "w7_large.jpg",
+                TransformSpec::new("base_portrait.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "w7_medium.jpg",
+                TransformSpec::new("base_portrait.jpg").with_scale(60),
+            ),
         ],
         expected_winner_index: 1, // largest
         description: "3 duplicates - largest dimensions wins".into(),
@@ -273,27 +217,18 @@ fn w7_three_plus_duplicates() -> ScenarioFixture {
 }
 
 fn w8_same_pixels_different_aspect() -> ScenarioFixture {
+    // Use explicit dimensions to control aspect ratio
     ScenarioFixture {
         scenario: TestScenario::W8SamePixelsDifferentAspect,
         images: vec![
-            TestImage {
-                filename: "w8_wide.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1000), // 2M pixels
-                    color: [255, 0, 255], // magenta
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "w8_tall.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(2000), // 2M pixels
-                    color: [255, 0, 255],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "w8_wide.jpg",
+                TransformSpec::new("base_portrait.jpg").with_size(2000, 1000),
+            ),
+            TestImage::new(
+                "w8_tall.jpg",
+                TransformSpec::new("base_portrait.jpg").with_size(1000, 2000),
+            ),
         ],
         expected_winner_index: 0, // first on tie
         description: "Same pixel count, different aspect - first wins".into(),
@@ -306,27 +241,18 @@ fn c1_winner_lacks_gps_loser_has() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::C1WinnerLacksGpsLoserHas,
         images: vec![
-            TestImage {
-                filename: "c1_winner_no_gps.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(3000),
-                    height: Some(2000),
-                    color: [200, 100, 100],
-                },
-                exif_spec: ExifSpec::default(), // no GPS
-            },
-            TestImage {
-                filename: "c1_loser_has_gps.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1500),
-                    height: Some(1000),
-                    color: [200, 100, 100],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((51.5074, -0.1278)), // London
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "c1_winner_no_gps.jpg",
+                TransformSpec::new("base_food.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "c1_loser_has_gps.jpg",
+                TransformSpec::new("base_food.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((51.5074, -0.1278)), // London
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Winner lacks GPS, loser has it - consolidate GPS".into(),
@@ -337,27 +263,18 @@ fn c2_winner_lacks_datetime_loser_has() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::C2WinnerLacksDatetimeLoserHas,
         images: vec![
-            TestImage {
-                filename: "c2_winner_no_dt.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2500),
-                    height: Some(1875),
-                    color: [100, 200, 100],
-                },
-                exif_spec: ExifSpec::default(), // no datetime
-            },
-            TestImage {
-                filename: "c2_loser_has_dt.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1250),
-                    height: Some(938),
-                    color: [100, 200, 100],
-                },
-                exif_spec: ExifSpec {
-                    datetime: Some(Utc.with_ymd_and_hms(2024, 6, 15, 14, 30, 0).unwrap()),
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "c2_winner_no_dt.jpg",
+                TransformSpec::new("base_food.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "c2_loser_has_dt.jpg",
+                TransformSpec::new("base_food.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                datetime: Some(Utc.with_ymd_and_hms(2024, 6, 15, 14, 30, 0).unwrap()),
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Winner lacks datetime, loser has it".into(),
@@ -368,27 +285,18 @@ fn c3_winner_lacks_description_loser_has() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::C3WinnerLacksDescriptionLoserHas,
         images: vec![
-            TestImage {
-                filename: "c3_winner_no_desc.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2200),
-                    height: Some(1650),
-                    color: [100, 100, 200],
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "c3_loser_has_desc.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1100),
-                    height: Some(825),
-                    color: [100, 100, 200],
-                },
-                exif_spec: ExifSpec {
-                    description: Some("Sunset at the beach".into()),
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "c3_winner_no_desc.jpg",
+                TransformSpec::new("base_food.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "c3_loser_has_desc.jpg",
+                TransformSpec::new("base_food.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                description: Some("Delicious salad".into()),
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Winner lacks description, loser has it".into(),
@@ -399,31 +307,22 @@ fn c4_winner_lacks_all_loser_has_all() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::C4WinnerLacksAllLoserHasAll,
         images: vec![
-            TestImage {
-                filename: "c4_winner_bare.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(4000),
-                    height: Some(3000),
-                    color: [150, 150, 50],
-                },
-                exif_spec: ExifSpec::default(), // no metadata
-            },
-            TestImage {
-                filename: "c4_loser_rich.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [150, 150, 50],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((40.7128, -74.0060)), // NYC
-                    datetime: Some(Utc.with_ymd_and_hms(2023, 12, 25, 10, 0, 0).unwrap()),
-                    timezone: Some("-05:00".into()),
-                    camera_make: Some("Canon".into()),
-                    camera_model: Some("EOS R5".into()),
-                    description: Some("Christmas morning".into()),
-                },
-            },
+            TestImage::new(
+                "c4_winner_bare.jpg",
+                TransformSpec::new("base_animal.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "c4_loser_rich.jpg",
+                TransformSpec::new("base_animal.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((40.7128, -74.0060)), // NYC
+                datetime: Some(Utc.with_ymd_and_hms(2023, 12, 25, 10, 0, 0).unwrap()),
+                timezone: Some("-05:00".into()),
+                camera_make: Some("Canon".into()),
+                camera_model: Some("EOS R5".into()),
+                description: Some("Lion at the zoo".into()),
+            }),
         ],
         expected_winner_index: 0,
         description: "Winner has no metadata, loser has everything".into(),
@@ -431,33 +330,26 @@ fn c4_winner_lacks_all_loser_has_all() -> ScenarioFixture {
 }
 
 fn c5_both_have_gps() -> ScenarioFixture {
+    let gps = Some((48.8566, 2.3522)); // Paris
     ScenarioFixture {
         scenario: TestScenario::C5BothHaveGps,
         images: vec![
-            TestImage {
-                filename: "c5_a_gps.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2400),
-                    height: Some(1600),
-                    color: [50, 150, 150],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((48.8566, 2.3522)), // Paris
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "c5_b_gps.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1200),
-                    height: Some(800),
-                    color: [50, 150, 150],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((48.8566, 2.3522)), // Same GPS
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "c5_a_gps.jpg",
+                TransformSpec::new("base_animal.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                gps,
+                ..Default::default()
+            }),
+            TestImage::new(
+                "c5_b_gps.jpg",
+                TransformSpec::new("base_animal.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                gps,
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Both have same GPS - no consolidation needed".into(),
@@ -468,39 +360,26 @@ fn c6_multiple_losers_contribute() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::C6MultipleLosersContribute,
         images: vec![
-            TestImage {
-                filename: "c6_winner.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(3200),
-                    height: Some(2400),
-                    color: [200, 50, 150],
-                },
-                exif_spec: ExifSpec::default(), // nothing
-            },
-            TestImage {
-                filename: "c6_loser_gps.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1600),
-                    height: Some(1200),
-                    color: [200, 50, 150],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((35.6762, 139.6503)), // Tokyo
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "c6_loser_dt.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(800),
-                    height: Some(600),
-                    color: [200, 50, 150],
-                },
-                exif_spec: ExifSpec {
-                    datetime: Some(Utc.with_ymd_and_hms(2024, 3, 20, 9, 0, 0).unwrap()),
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "c6_winner.jpg",
+                TransformSpec::new("base_animal.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "c6_loser_gps.jpg",
+                TransformSpec::new("base_animal.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((35.6762, 139.6503)), // Tokyo
+                ..Default::default()
+            }),
+            TestImage::new(
+                "c6_loser_dt.jpg",
+                TransformSpec::new("base_animal.jpg").with_scale(30),
+            )
+            .with_exif(ExifSpec {
+                datetime: Some(Utc.with_ymd_and_hms(2024, 3, 20, 9, 0, 0).unwrap()),
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Multiple losers contribute different metadata".into(),
@@ -511,24 +390,14 @@ fn c7_no_loser_has_needed() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::C7NoLoserHasNeeded,
         images: vec![
-            TestImage {
-                filename: "c7_winner.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2800),
-                    height: Some(2100),
-                    color: [100, 200, 50],
-                },
-                exif_spec: ExifSpec::default(), // needs GPS
-            },
-            TestImage {
-                filename: "c7_loser.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1400),
-                    height: Some(1050),
-                    color: [100, 200, 50],
-                },
-                exif_spec: ExifSpec::default(), // also no GPS
-            },
+            TestImage::new(
+                "c7_winner.jpg",
+                TransformSpec::new("base_night.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "c7_loser.jpg",
+                TransformSpec::new("base_night.jpg").with_scale(50),
+            ),
         ],
         expected_winner_index: 0,
         description: "Winner lacks GPS but no loser has it either".into(),
@@ -539,31 +408,22 @@ fn c8_winner_has_everything() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::C8WinnerHasEverything,
         images: vec![
-            TestImage {
-                filename: "c8_winner_full.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(3600),
-                    height: Some(2400),
-                    color: [50, 100, 200],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((37.7749, -122.4194)), // SF
-                    datetime: Some(Utc.with_ymd_and_hms(2024, 7, 4, 12, 0, 0).unwrap()),
-                    timezone: Some("-07:00".into()),
-                    camera_make: Some("Sony".into()),
-                    camera_model: Some("A7R IV".into()),
-                    description: Some("Golden Gate at noon".into()),
-                },
-            },
-            TestImage {
-                filename: "c8_loser_bare.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1800),
-                    height: Some(1200),
-                    color: [50, 100, 200],
-                },
-                exif_spec: ExifSpec::default(), // nothing
-            },
+            TestImage::new(
+                "c8_winner_full.jpg",
+                TransformSpec::new("base_night.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((37.7749, -122.4194)), // SF
+                datetime: Some(Utc.with_ymd_and_hms(2024, 7, 4, 12, 0, 0).unwrap()),
+                timezone: Some("-07:00".into()),
+                camera_make: Some("Sony".into()),
+                camera_model: Some("A7R IV".into()),
+                description: Some("Golden Gate at noon".into()),
+            }),
+            TestImage::new(
+                "c8_loser_bare.jpg",
+                TransformSpec::new("base_night.jpg").with_scale(50),
+            ),
         ],
         expected_winner_index: 0,
         description: "Winner already has all metadata - nothing to consolidate".into(),
@@ -576,30 +436,22 @@ fn f1_gps_conflict() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::F1GpsConflict,
         images: vec![
-            TestImage {
-                filename: "f1_london.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [255, 100, 100],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((51.5074, -0.1278)), // London
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "f1_paris.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [255, 100, 100],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((48.8566, 2.3522)), // Paris - clearly different
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "f1_london.jpg",
+                TransformSpec::new("base_macro.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((51.5074, -0.1278)), // London
+                ..Default::default()
+            }),
+            TestImage::new(
+                "f1_paris.jpg",
+                TransformSpec::new("base_macro.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((48.8566, 2.3522)), // Paris
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "GPS conflict - London vs Paris (should flag conflict)".into(),
@@ -610,30 +462,22 @@ fn f2_gps_within_threshold() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::F2GpsWithinThreshold,
         images: vec![
-            TestImage {
-                filename: "f2_pos_a.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [100, 255, 100],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((51.50740, -0.12780)),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "f2_pos_b.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [100, 255, 100],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((51.50745, -0.12785)), // ~5m away, within threshold
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "f2_pos_a.jpg",
+                TransformSpec::new("base_macro.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((51.50740, -0.12780)),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "f2_pos_b.jpg",
+                TransformSpec::new("base_macro.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((51.50745, -0.12785)), // ~5m away
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "GPS within threshold - should NOT conflict".into(),
@@ -644,30 +488,22 @@ fn f3_timezone_conflict() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::F3TimezoneConflict,
         images: vec![
-            TestImage {
-                filename: "f3_tz_a.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [100, 100, 255],
-                },
-                exif_spec: ExifSpec {
-                    timezone: Some("+00:00".into()), // UTC
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "f3_tz_b.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [100, 100, 255],
-                },
-                exif_spec: ExifSpec {
-                    timezone: Some("-08:00".into()), // PST
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "f3_tz_a.jpg",
+                TransformSpec::new("base_macro.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                timezone: Some("+00:00".into()), // UTC
+                ..Default::default()
+            }),
+            TestImage::new(
+                "f3_tz_b.jpg",
+                TransformSpec::new("base_macro.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                timezone: Some("-08:00".into()), // PST
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Timezone conflict - UTC vs PST".into(),
@@ -678,32 +514,24 @@ fn f4_camera_conflict() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::F4CameraConflict,
         images: vec![
-            TestImage {
-                filename: "f4_canon.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [200, 200, 100],
-                },
-                exif_spec: ExifSpec {
-                    camera_make: Some("Canon".into()),
-                    camera_model: Some("EOS R5".into()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "f4_nikon.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [200, 200, 100],
-                },
-                exif_spec: ExifSpec {
-                    camera_make: Some("Nikon".into()),
-                    camera_model: Some("Z6 II".into()),
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "f4_canon.jpg",
+                TransformSpec::new("base_abstract.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                camera_make: Some("Canon".into()),
+                camera_model: Some("EOS R5".into()),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "f4_nikon.jpg",
+                TransformSpec::new("base_abstract.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                camera_make: Some("Nikon".into()),
+                camera_model: Some("Z6 II".into()),
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Camera conflict - Canon vs Nikon".into(),
@@ -714,30 +542,22 @@ fn f5_capture_time_conflict() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::F5CaptureTimeConflict,
         images: vec![
-            TestImage {
-                filename: "f5_morning.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [200, 100, 200],
-                },
-                exif_spec: ExifSpec {
-                    datetime: Some(Utc.with_ymd_and_hms(2024, 1, 15, 8, 0, 0).unwrap()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "f5_evening.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [200, 100, 200],
-                },
-                exif_spec: ExifSpec {
-                    datetime: Some(Utc.with_ymd_and_hms(2024, 1, 15, 20, 0, 0).unwrap()), // 12h diff
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "f5_morning.jpg",
+                TransformSpec::new("base_abstract.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                datetime: Some(Utc.with_ymd_and_hms(2024, 1, 15, 8, 0, 0).unwrap()),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "f5_evening.jpg",
+                TransformSpec::new("base_abstract.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                datetime: Some(Utc.with_ymd_and_hms(2024, 1, 15, 20, 0, 0).unwrap()),
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Capture time conflict - morning vs evening".into(),
@@ -748,34 +568,26 @@ fn f6_multiple_conflicts() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::F6MultipleConflicts,
         images: vec![
-            TestImage {
-                filename: "f6_a.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [150, 150, 150],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((51.5074, -0.1278)), // London
-                    camera_make: Some("Canon".into()),
-                    timezone: Some("+00:00".into()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "f6_b.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [150, 150, 150],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((40.7128, -74.0060)), // NYC
-                    camera_make: Some("Sony".into()),
-                    timezone: Some("-05:00".into()),
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "f6_a.jpg",
+                TransformSpec::new("base_abstract.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((51.5074, -0.1278)), // London
+                camera_make: Some("Canon".into()),
+                timezone: Some("+00:00".into()),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "f6_b.jpg",
+                TransformSpec::new("base_abstract.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                gps: Some((40.7128, -74.0060)), // NYC
+                camera_make: Some("Sony".into()),
+                timezone: Some("-05:00".into()),
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Multiple conflicts - GPS, camera, timezone all differ".into(),
@@ -783,35 +595,24 @@ fn f6_multiple_conflicts() -> ScenarioFixture {
 }
 
 fn f7_no_conflicts() -> ScenarioFixture {
+    let exif = ExifSpec {
+        gps: Some((51.5074, -0.1278)),
+        camera_make: Some("Canon".into()),
+        ..Default::default()
+    };
     ScenarioFixture {
         scenario: TestScenario::F7NoConflicts,
         images: vec![
-            TestImage {
-                filename: "f7_a.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [180, 180, 180],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((51.5074, -0.1278)),
-                    camera_make: Some("Canon".into()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "f7_b.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [180, 180, 180],
-                },
-                exif_spec: ExifSpec {
-                    gps: Some((51.5074, -0.1278)), // Same GPS
-                    camera_make: Some("Canon".into()), // Same camera
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "f7_a.jpg",
+                TransformSpec::new("base_indoor.jpg").with_scale(100),
+            )
+            .with_exif(exif.clone()),
+            TestImage::new(
+                "f7_b.jpg",
+                TransformSpec::new("base_indoor.jpg").with_scale(50),
+            )
+            .with_exif(exif),
         ],
         expected_winner_index: 0,
         description: "No conflicts - metadata matches".into(),
@@ -823,15 +624,10 @@ fn f7_no_conflicts() -> ScenarioFixture {
 fn x1_single_asset_group() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X1SingleAssetGroup,
-        images: vec![TestImage {
-            filename: "x1_single.jpg".into(),
-            image_spec: ImageSpec {
-                width: Some(1920),
-                height: Some(1080),
-                color: [100, 100, 100],
-            },
-            exif_spec: ExifSpec::default(),
-        }],
+        images: vec![TestImage::new(
+            "x1_single.jpg",
+            TransformSpec::new("base_indoor.jpg").with_scale(80),
+        )],
         expected_winner_index: 0,
         description: "Single asset group - trivial case".into(),
     }
@@ -839,51 +635,39 @@ fn x1_single_asset_group() -> ScenarioFixture {
 
 fn x2_large_group() -> ScenarioFixture {
     let images: Vec<TestImage> = (0..12)
-        .map(|i| TestImage {
-            filename: format!("x2_dup_{:02}.jpg", i),
-            image_spec: ImageSpec {
-                width: Some(1000 + i * 100),
-                height: Some(750 + i * 75),
-                color: [50 + (i as u8) * 10, 50, 50],
-            },
-            exif_spec: ExifSpec::default(),
+        .map(|i| {
+            TestImage::new(
+                format!("x2_dup_{:02}.jpg", i),
+                TransformSpec::new("base_indoor.jpg").with_scale(30 + i * 5),
+            )
         })
         .collect();
 
     ScenarioFixture {
         scenario: TestScenario::X2LargeGroup,
         images,
-        expected_winner_index: 11, // largest
+        expected_winner_index: 11, // largest (30 + 11*5 = 85%)
         description: "12 duplicates - largest should win".into(),
     }
 }
 
 fn x3_large_file() -> ScenarioFixture {
-    // Note: actual file will be small, but test validates handling
     ScenarioFixture {
         scenario: TestScenario::X3LargeFile,
         images: vec![
-            TestImage {
-                filename: "x3_large.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(8000),
-                    height: Some(6000), // 48MP
-                    color: [200, 200, 200],
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "x3_small.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [200, 200, 200],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "x3_large.jpg",
+                TransformSpec::new("base_outdoor.jpg")
+                    .with_scale(100)
+                    .with_quality(100),
+            ),
+            TestImage::new(
+                "x3_small.jpg",
+                TransformSpec::new("base_outdoor.jpg").with_scale(25),
+            ),
         ],
         expected_winner_index: 0,
-        description: "Large file handling (48MP image)".into(),
+        description: "Large file handling (full size, max quality)".into(),
     }
 }
 
@@ -891,24 +675,14 @@ fn x4_special_chars_filename() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X4SpecialCharsFilename,
         images: vec![
-            TestImage {
-                filename: "x4_photo (1).jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [255, 200, 100],
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "x4_photo-copy_2024.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [255, 200, 100],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "x4_photo (1).jpg",
+                TransformSpec::new("base_indoor.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "x4_photo-copy_2024.jpg",
+                TransformSpec::new("base_indoor.jpg").with_scale(50),
+            ),
         ],
         expected_winner_index: 0,
         description: "Filenames with spaces, parens, hyphens".into(),
@@ -919,24 +693,14 @@ fn x5_video() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X5Video,
         images: vec![
-            TestImage {
-                filename: "x5_video_hd.mp4".into(),
-                image_spec: ImageSpec {
-                    width: Some(1920),
-                    height: Some(1080),
-                    color: [0, 0, 255], // blue for video indicator
-                },
-                exif_spec: ExifSpec::default(),
-            },
-            TestImage {
-                filename: "x5_video_sd.mp4".into(),
-                image_spec: ImageSpec {
-                    width: Some(640),
-                    height: Some(480),
-                    color: [0, 0, 255],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "x5_video_hd.mp4",
+                TransformSpec::new("base_outdoor.jpg").with_size(1920, 1080),
+            ),
+            TestImage::new(
+                "x5_video_sd.mp4",
+                TransformSpec::new("base_outdoor.jpg").with_size(640, 480),
+            ),
         ],
         expected_winner_index: 0,
         description: "Video duplicates - HD vs SD".into(),
@@ -947,28 +711,19 @@ fn x6_heic() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X6Heic,
         images: vec![
-            TestImage {
-                filename: "x6_photo.heic".into(),
-                image_spec: ImageSpec {
-                    width: Some(4032),
-                    height: Some(3024), // iPhone resolution
-                    color: [100, 200, 255],
-                },
-                exif_spec: ExifSpec {
-                    camera_make: Some("Apple".into()),
-                    camera_model: Some("iPhone 15 Pro".into()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "x6_photo_converted.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2016),
-                    height: Some(1512),
-                    color: [100, 200, 255],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "x6_photo.heic",
+                TransformSpec::new("base_outdoor.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                camera_make: Some("Apple".into()),
+                camera_model: Some("iPhone 15 Pro".into()),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "x6_photo_converted.jpg",
+                TransformSpec::new("base_outdoor.jpg").with_scale(50),
+            ),
         ],
         expected_winner_index: 0,
         description: "HEIC vs converted JPEG".into(),
@@ -979,24 +734,14 @@ fn x7_png() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X7Png,
         images: vec![
-            TestImage {
-                filename: "x7_image.png".into(),
-                image_spec: ImageSpec {
-                    width: Some(2048),
-                    height: Some(1536),
-                    color: [200, 255, 200],
-                },
-                exif_spec: ExifSpec::default(), // PNG has limited EXIF
-            },
-            TestImage {
-                filename: "x7_image.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1024),
-                    height: Some(768),
-                    color: [200, 255, 200],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "x7_image.png",
+                TransformSpec::new("base_outdoor.jpg").with_scale(100),
+            ),
+            TestImage::new(
+                "x7_image.jpg",
+                TransformSpec::new("base_outdoor.jpg").with_scale(50),
+            ),
         ],
         expected_winner_index: 0,
         description: "PNG vs JPEG - PNG larger".into(),
@@ -1007,30 +752,21 @@ fn x8_raw() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X8Raw,
         images: vec![
-            TestImage {
-                filename: "x8_photo.cr3".into(), // Canon RAW
-                image_spec: ImageSpec {
-                    width: Some(6720),
-                    height: Some(4480),
-                    color: [150, 100, 50],
-                },
-                exif_spec: ExifSpec {
-                    camera_make: Some("Canon".into()),
-                    camera_model: Some("EOS R5".into()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "x8_photo.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(6720),
-                    height: Some(4480),
-                    color: [150, 100, 50],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "x8_photo.cr3",
+                TransformSpec::new("base_outdoor.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                camera_make: Some("Canon".into()),
+                camera_model: Some("EOS R5".into()),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "x8_photo.jpg",
+                TransformSpec::new("base_outdoor.jpg").with_scale(100),
+            ),
         ],
-        expected_winner_index: 0, // First on same dimensions
+        expected_winner_index: 0,
         description: "RAW vs JPEG - same dimensions".into(),
     }
 }
@@ -1039,27 +775,18 @@ fn x9_unicode_description() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X9UnicodeDescription,
         images: vec![
-            TestImage {
-                filename: "x9_unicode.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [255, 255, 200],
-                },
-                exif_spec: ExifSpec {
-                    description: Some("日本の桜 🌸 Cherry blossoms in 東京".into()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "x9_plain.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [255, 255, 200],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "x9_unicode.jpg",
+                TransformSpec::new("base_landscape.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                description: Some("日本の桜 🌸 Cherry blossoms".into()),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "x9_plain.jpg",
+                TransformSpec::new("base_landscape.jpg").with_scale(50),
+            ),
         ],
         expected_winner_index: 0,
         description: "Unicode in description - Japanese, emoji".into(),
@@ -1070,27 +797,18 @@ fn x10_very_old_date() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X10VeryOldDate,
         images: vec![
-            TestImage {
-                filename: "x10_old.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1600),
-                    height: Some(1200),
-                    color: [180, 150, 100], // sepia-ish
-                },
-                exif_spec: ExifSpec {
-                    datetime: Some(Utc.with_ymd_and_hms(1985, 7, 20, 12, 0, 0).unwrap()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "x10_scan.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(800),
-                    height: Some(600),
-                    color: [180, 150, 100],
-                },
-                exif_spec: ExifSpec::default(),
-            },
+            TestImage::new(
+                "x10_old.jpg",
+                TransformSpec::new("base_landscape.jpg").with_scale(80),
+            )
+            .with_exif(ExifSpec {
+                datetime: Some(Utc.with_ymd_and_hms(1985, 7, 20, 12, 0, 0).unwrap()),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "x10_scan.jpg",
+                TransformSpec::new("base_landscape.jpg").with_scale(40),
+            ),
         ],
         expected_winner_index: 0,
         description: "Very old date (1985) - film scan scenario".into(),
@@ -1101,30 +819,22 @@ fn x11_future_date() -> ScenarioFixture {
     ScenarioFixture {
         scenario: TestScenario::X11FutureDate,
         images: vec![
-            TestImage {
-                filename: "x11_future.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(2000),
-                    height: Some(1500),
-                    color: [100, 255, 255],
-                },
-                exif_spec: ExifSpec {
-                    datetime: Some(Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0).unwrap()),
-                    ..Default::default()
-                },
-            },
-            TestImage {
-                filename: "x11_normal.jpg".into(),
-                image_spec: ImageSpec {
-                    width: Some(1000),
-                    height: Some(750),
-                    color: [100, 255, 255],
-                },
-                exif_spec: ExifSpec {
-                    datetime: Some(Utc.with_ymd_and_hms(2024, 6, 15, 14, 0, 0).unwrap()),
-                    ..Default::default()
-                },
-            },
+            TestImage::new(
+                "x11_future.jpg",
+                TransformSpec::new("base_landscape.jpg").with_scale(100),
+            )
+            .with_exif(ExifSpec {
+                datetime: Some(Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0).unwrap()),
+                ..Default::default()
+            }),
+            TestImage::new(
+                "x11_normal.jpg",
+                TransformSpec::new("base_landscape.jpg").with_scale(50),
+            )
+            .with_exif(ExifSpec {
+                datetime: Some(Utc.with_ymd_and_hms(2024, 6, 15, 14, 0, 0).unwrap()),
+                ..Default::default()
+            }),
         ],
         expected_winner_index: 0,
         description: "Future date (2030) - camera clock error scenario".into(),

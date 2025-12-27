@@ -1,9 +1,0 @@
-{
-  "scenario": "F1",
-  "description": "GPS conflict - London vs Paris (should flag conflict)",
-  "images": [
-    "f1_london.jpg",
-    "f1_paris.jpg"
-  ],
-  "expected_winner": "f1_london.jpg"
-}

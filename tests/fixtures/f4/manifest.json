@@ -1,9 +1,0 @@
-{
-  "scenario": "F4",
-  "description": "Camera conflict - Canon vs Nikon",
-  "images": [
-    "f4_canon.jpg",
-    "f4_nikon.jpg"
-  ],
-  "expected_winner": "f4_canon.jpg"
-}

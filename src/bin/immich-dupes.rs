@@ -457,6 +457,13 @@ fn run_generate_fixtures(output_dir: &PathBuf, scenario_filter: Option<&str>) ->
     let fixtures = all_fixtures();
     let total = fixtures.len();
 
+    // Base images directory (contains real photos for transforms)
+    let base_dir = output_dir.join("base");
+    if !base_dir.exists() {
+        println!("Warning: Base images directory not found: {}", base_dir.display());
+        println!("Run the fixture setup first to download base images.");
+    }
+
     // Filter fixtures if scenario specified
     let fixtures: Vec<_> = if let Some(filter) = scenario_filter {
         let filter_upper = filter.to_uppercase();
@@ -508,7 +515,7 @@ fn run_generate_fixtures(output_dir: &PathBuf, scenario_filter: Option<&str>) ->
         let mut all_success = true;
 
         for image in &fixture.images {
-            match generate_image(image, &scenario_dir) {
+            match generate_image(image, &base_dir, &scenario_dir) {
                 Ok(path) => {
                     image_filenames.push(image.filename.clone());
                     println!("    ✓ {}", path.file_name().unwrap_or_default().to_string_lossy());

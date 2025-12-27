@@ -1,8 +1,0 @@
-{
-  "scenario": "X6",
-  "description": "HEIC vs converted JPEG",
-  "images": [
-    "x6_photo_converted.jpg"
-  ],
-  "expected_winner": "x6_photo.heic"
-}

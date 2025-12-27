@@ -1,9 +1,0 @@
-{
-  "scenario": "C4",
-  "description": "Winner has no metadata, loser has everything",
-  "images": [
-    "c4_winner_bare.jpg",
-    "c4_loser_rich.jpg"
-  ],
-  "expected_winner": "c4_winner_bare.jpg"
-}

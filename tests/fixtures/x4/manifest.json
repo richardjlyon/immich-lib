@@ -1,9 +1,0 @@
-{
-  "scenario": "X4",
-  "description": "Filenames with spaces, parens, hyphens",
-  "images": [
-    "x4_photo (1).jpg",
-    "x4_photo-copy_2024.jpg"
-  ],
-  "expected_winner": "x4_photo (1).jpg"
-}

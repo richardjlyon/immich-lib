@@ -1,9 +1,0 @@
-{
-  "scenario": "W6",
-  "description": "No dimensions on any - first wins",
-  "images": [
-    "w6_a.jpg",
-    "w6_b.jpg"
-  ],
-  "expected_winner": "w6_a.jpg"
-}

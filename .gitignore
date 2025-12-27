@@ -21,3 +21,8 @@ Thumbs.db
 # Test outputs
 *.log
 /backups/
+
+# Generated test fixtures (regenerate with: immich-dupes generate-fixtures)
+tests/fixtures/*
+!tests/fixtures/base/
+!tests/fixtures/MANIFEST.md

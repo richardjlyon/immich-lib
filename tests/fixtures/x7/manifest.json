@@ -1,9 +1,0 @@
-{
-  "scenario": "X7",
-  "description": "PNG vs JPEG - PNG larger",
-  "images": [
-    "x7_image.png",
-    "x7_image.jpg"
-  ],
-  "expected_winner": "x7_image.png"
-}
