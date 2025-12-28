@@ -19,18 +19,18 @@
 ## Current Position
 
 Phase: 9 of 10 (Detection + Selection)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2025-12-28 - Completed 09-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2025-12-28 - Completed 09-02-PLAN.md
 
-Progress: ██░░░░░░░░ 20% (2/? plans in v1.1)
+Progress: ███░░░░░░░ 30% (3/? plans in v1.1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: 13 min
-- Total execution time: 320 min
+- Total execution time: 326 min
 
 **By Phase:**
 
@@ -44,11 +44,11 @@ Progress: ██░░░░░░░░ 20% (2/? plans in v1.1)
 | 6 | 11/11 | 199 min | 18 min |
 | 7 | 3/3 | 45 min | 15 min |
 | 8 | 1/1 | 2 min | 2 min |
-| 9 | 1/2 | TBD | TBD |
+| 9 | 2/2 | 6 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-05-03 (45 min), 07-01 (27 min), 07-02 (10 min), 07-03 (8 min), 08-01 (2 min)
-- Trend: v1.1 research complete, implementation phases next
+- Last 5 plans: 07-02 (10 min), 07-03 (8 min), 08-01 (2 min), 09-01 (TBD), 09-02 (6 min)
+- Trend: Phase 9 complete, ready for CLI implementation
 
 *Updated after each plan completion*
 
@@ -120,6 +120,9 @@ Progress: ██░░░░░░░░ 20% (2/? plans in v1.1)
 | 09-01 | Orientation-agnostic ratio | Use max/min dims to handle portrait/landscape |
 | 09-01 | PairingKey grouping | timestamp_second + make + model + GPS optional |
 | 09-01 | Serialize for AssetResponse | Required for LetterboxPair JSON serialization |
+| 09-02 | 1000 page size for pagination | Standard Immich default for asset listing |
+| 09-02 | Filter trashed in get_all_assets | Matches letterbox detection behavior |
+| 09-02 | Track skipped counts in analysis | Transparency for non-iPhone and ambiguous groups |
 
 ### Roadmap Evolution
 
@@ -147,6 +150,6 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-28
-Stopped at: Completed 09-01-PLAN.md
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None
-Note: Phase 9 plan 1/2 complete. Ready for 09-02-PLAN.md (Analysis Report).
+Note: Phase 9 complete. Ready for Phase 10: CLI `letterbox` command.

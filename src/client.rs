@@ -107,6 +107,50 @@ impl ImmichClient {
         self.handle_response(response).await
     }
 
+    /// Fetches all assets from the Immich server.
+    ///
+    /// Uses pagination to handle large libraries. Automatically filters out
+    /// trashed assets.
+    ///
+    /// # Returns
+    ///
+    /// A vector of all non-trashed assets in the library.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The HTTP request fails (network error, timeout)
+    /// - The server returns an error response (401 unauthorized, etc.)
+    /// - The response cannot be parsed as JSON
+    pub async fn get_all_assets(&self) -> Result<Vec<AssetResponse>> {
+        const PAGE_SIZE: usize = 1000;
+        let mut all_assets = Vec::new();
+        let mut skip: usize = 0;
+
+        loop {
+            let mut url = self.base_url.join("/api/assets")?;
+            url.query_pairs_mut()
+                .append_pair("take", &PAGE_SIZE.to_string())
+                .append_pair("skip", &skip.to_string());
+
+            let response = self.client.get(url).send().await?;
+            let page: Vec<AssetResponse> = self.handle_response(response).await?;
+
+            if page.is_empty() {
+                break;
+            }
+
+            // Filter out trashed assets
+            let non_trashed: Vec<AssetResponse> =
+                page.into_iter().filter(|a| !a.is_trashed).collect();
+            all_assets.extend(non_trashed);
+
+            skip += PAGE_SIZE;
+        }
+
+        Ok(all_assets)
+    }
+
     /// Fetches a single asset by ID.
     ///
     /// # Arguments

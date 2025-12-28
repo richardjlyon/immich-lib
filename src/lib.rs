@@ -30,4 +30,5 @@ pub mod testing;
 pub use client::{ImmichClient, UploadResponse};
 pub use error::{ImmichError, Result};
 pub use executor::Executor;
+pub use letterbox::{detect_aspect_ratio, find_letterbox_pairs, AspectRatio, LetterboxAnalysis, LetterboxPair};
 pub use scoring::{detect_conflicts, DuplicateAnalysis, MetadataConflict, MetadataScore, ScoredAsset};

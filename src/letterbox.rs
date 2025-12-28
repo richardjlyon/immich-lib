@@ -8,7 +8,8 @@
 
 use std::collections::HashMap;
 
-use serde::Serialize;
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
 
 use crate::models::AssetResponse;
 
@@ -77,7 +78,7 @@ pub fn detect_aspect_ratio(width: u32, height: u32) -> Option<AspectRatio> {
 }
 
 /// A detected letterbox pair (4:3 original + 16:9 crop).
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LetterboxPair {
     /// The 4:3 version to keep (more pixels, full scene)
     pub keeper: AssetResponse,
@@ -249,6 +250,120 @@ pub fn find_letterbox_pairs(assets: &[AssetResponse]) -> Vec<LetterboxPair> {
     }
 
     pairs
+}
+
+/// Analysis report for letterbox duplicates.
+///
+/// This is the serializable output format for letterbox detection,
+/// following the same pattern as `DuplicateAnalysis` for consistency.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LetterboxAnalysis {
+    /// Detected letterbox pairs (4:3 keeper + 16:9 to delete)
+    pub pairs: Vec<LetterboxPair>,
+
+    /// Total number of pairs detected
+    pub total_pairs: usize,
+
+    /// Sum of file sizes of assets marked for deletion (bytes)
+    pub total_space_recoverable: u64,
+
+    /// Groups skipped due to ambiguity (multiple pairs at same timestamp)
+    pub skipped_ambiguous: usize,
+
+    /// Non-Apple assets encountered (ignored for letterbox detection)
+    pub skipped_non_iphone: usize,
+
+    /// ISO 8601 timestamp when analysis was performed
+    pub analyzed_at: String,
+}
+
+impl LetterboxAnalysis {
+    /// Build a letterbox analysis from a collection of assets.
+    ///
+    /// Internally calls `find_letterbox_pairs` and computes summary statistics.
+    ///
+    /// # Arguments
+    ///
+    /// * `assets` - Slice of assets to analyze for letterbox pairs
+    ///
+    /// # Returns
+    ///
+    /// Analysis report with detected pairs and statistics.
+    pub fn from_assets(assets: &[AssetResponse]) -> Self {
+        // Count non-iPhone assets
+        let skipped_non_iphone = assets
+            .iter()
+            .filter(|a| !is_iphone_asset(a))
+            .count();
+
+        // Count iPhone assets grouped by pairing key
+        let mut groups: HashMap<PairingKey, Vec<&AssetResponse>> = HashMap::new();
+        for asset in assets {
+            if !is_iphone_asset(asset) {
+                continue;
+            }
+            if asset.is_trashed {
+                continue;
+            }
+            if get_asset_aspect_ratio(asset).is_none() {
+                continue;
+            }
+            if let Some(key) = PairingKey::from_asset(asset) {
+                groups.entry(key).or_default().push(asset);
+            }
+        }
+
+        // Count ambiguous groups (more than one of same ratio)
+        let skipped_ambiguous = groups
+            .values()
+            .filter(|group| {
+                let four_three_count = group
+                    .iter()
+                    .filter(|a| get_asset_aspect_ratio(a) == Some(AspectRatio::FourThree))
+                    .count();
+                let sixteen_nine_count = group
+                    .iter()
+                    .filter(|a| get_asset_aspect_ratio(a) == Some(AspectRatio::SixteenNine))
+                    .count();
+                // Ambiguous if >1 of either ratio with at least one of the other
+                (four_three_count > 1 && sixteen_nine_count > 0)
+                    || (sixteen_nine_count > 1 && four_three_count > 0)
+            })
+            .count();
+
+        // Find pairs
+        let pairs = find_letterbox_pairs(assets);
+
+        // Calculate space recoverable from delete assets
+        let total_space_recoverable = pairs
+            .iter()
+            .filter_map(|pair| {
+                pair.delete
+                    .exif_info
+                    .as_ref()
+                    .and_then(|e| e.file_size_in_byte)
+            })
+            .sum();
+
+        Self {
+            total_pairs: pairs.len(),
+            pairs,
+            total_space_recoverable,
+            skipped_ambiguous,
+            skipped_non_iphone,
+            analyzed_at: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        }
+    }
+
+    /// Returns asset IDs of all assets marked for deletion.
+    pub fn delete_ids(&self) -> Vec<&str> {
+        self.pairs.iter().map(|p| p.delete.id.as_str()).collect()
+    }
+
+    /// Returns asset IDs of all keepers.
+    pub fn keeper_ids(&self) -> Vec<&str> {
+        self.pairs.iter().map(|p| p.keeper.id.as_str()).collect()
+    }
 }
 
 #[cfg(test)]
@@ -854,5 +969,220 @@ mod tests {
 
         let pairs = find_letterbox_pairs(&assets);
         assert_eq!(pairs.len(), 1); // Should pair (same second)
+    }
+
+    // ============ LetterboxAnalysis Tests ============
+
+    /// Helper to create mock asset with file size.
+    fn mock_asset_with_size(
+        id: &str,
+        width: Option<u32>,
+        height: Option<u32>,
+        make: Option<&str>,
+        model: Option<&str>,
+        timestamp: Option<&str>,
+        file_size: Option<u64>,
+    ) -> AssetResponse {
+        let exif = ExifInfo {
+            exif_image_width: width,
+            exif_image_height: height,
+            make: make.map(String::from),
+            model: model.map(String::from),
+            date_time_original: timestamp.map(String::from),
+            latitude: None,
+            longitude: None,
+            city: None,
+            state: None,
+            country: None,
+            time_zone: None,
+            lens_model: None,
+            exposure_time: None,
+            f_number: None,
+            focal_length: None,
+            iso: None,
+            file_size_in_byte: file_size,
+            description: None,
+            rating: None,
+            orientation: None,
+            modify_date: None,
+            projection_type: None,
+        };
+
+        AssetResponse {
+            id: id.to_string(),
+            original_file_name: format!("{}.HEIC", id),
+            file_created_at: "2024-12-23T10:30:45Z".to_string(),
+            local_date_time: "2024-12-23T10:30:45".to_string(),
+            asset_type: AssetType::Image,
+            exif_info: Some(exif),
+            checksum: "abc123".to_string(),
+            is_trashed: false,
+            is_favorite: false,
+            is_archived: false,
+            has_metadata: true,
+            duration: "0:00:00.000000".to_string(),
+            owner_id: "owner-1".to_string(),
+            original_mime_type: Some("image/heic".to_string()),
+            duplicate_id: None,
+            thumbhash: None,
+        }
+    }
+
+    #[test]
+    fn test_letterbox_analysis_from_assets() {
+        let assets = vec![
+            // Valid pair
+            mock_asset_with_size(
+                "keeper-1",
+                Some(5712),
+                Some(4284), // 4:3
+                Some("Apple"),
+                Some("iPhone 15 Pro Max"),
+                Some("2024-12-23T10:30:45Z"),
+                Some(10_000_000), // 10MB
+            ),
+            mock_asset_with_size(
+                "delete-1",
+                Some(5712),
+                Some(3213), // 16:9
+                Some("Apple"),
+                Some("iPhone 15 Pro Max"),
+                Some("2024-12-23T10:30:45Z"),
+                Some(8_000_000), // 8MB
+            ),
+            // Non-iPhone asset (should be skipped)
+            mock_asset_with_size(
+                "android-1",
+                Some(4000),
+                Some(3000),
+                Some("Samsung"),
+                Some("Galaxy S23"),
+                Some("2024-12-23T11:00:00Z"),
+                Some(5_000_000),
+            ),
+        ];
+
+        let analysis = LetterboxAnalysis::from_assets(&assets);
+
+        assert_eq!(analysis.total_pairs, 1);
+        assert_eq!(analysis.pairs.len(), 1);
+        assert_eq!(analysis.total_space_recoverable, 8_000_000);
+        assert_eq!(analysis.skipped_non_iphone, 1);
+        assert_eq!(analysis.skipped_ambiguous, 0);
+        assert!(!analysis.analyzed_at.is_empty());
+    }
+
+    #[test]
+    fn test_letterbox_analysis_delete_ids() {
+        let assets = vec![
+            mock_asset_with_size(
+                "keeper-1",
+                Some(5712),
+                Some(4284),
+                Some("Apple"),
+                Some("iPhone 15 Pro Max"),
+                Some("2024-12-23T10:30:45Z"),
+                Some(10_000_000),
+            ),
+            mock_asset_with_size(
+                "delete-1",
+                Some(5712),
+                Some(3213),
+                Some("Apple"),
+                Some("iPhone 15 Pro Max"),
+                Some("2024-12-23T10:30:45Z"),
+                Some(8_000_000),
+            ),
+        ];
+
+        let analysis = LetterboxAnalysis::from_assets(&assets);
+        let delete_ids = analysis.delete_ids();
+
+        assert_eq!(delete_ids.len(), 1);
+        assert_eq!(delete_ids[0], "delete-1");
+    }
+
+    #[test]
+    fn test_letterbox_analysis_keeper_ids() {
+        let assets = vec![
+            mock_asset_with_size(
+                "keeper-1",
+                Some(5712),
+                Some(4284),
+                Some("Apple"),
+                Some("iPhone 15 Pro Max"),
+                Some("2024-12-23T10:30:45Z"),
+                Some(10_000_000),
+            ),
+            mock_asset_with_size(
+                "delete-1",
+                Some(5712),
+                Some(3213),
+                Some("Apple"),
+                Some("iPhone 15 Pro Max"),
+                Some("2024-12-23T10:30:45Z"),
+                Some(8_000_000),
+            ),
+        ];
+
+        let analysis = LetterboxAnalysis::from_assets(&assets);
+        let keeper_ids = analysis.keeper_ids();
+
+        assert_eq!(keeper_ids.len(), 1);
+        assert_eq!(keeper_ids[0], "keeper-1");
+    }
+
+    #[test]
+    fn test_letterbox_analysis_serialization() {
+        let assets = vec![
+            mock_asset_with_size(
+                "keeper-1",
+                Some(5712),
+                Some(4284),
+                Some("Apple"),
+                Some("iPhone 15 Pro Max"),
+                Some("2024-12-23T10:30:45Z"),
+                Some(10_000_000),
+            ),
+            mock_asset_with_size(
+                "delete-1",
+                Some(5712),
+                Some(3213),
+                Some("Apple"),
+                Some("iPhone 15 Pro Max"),
+                Some("2024-12-23T10:30:45Z"),
+                Some(8_000_000),
+            ),
+        ];
+
+        let analysis = LetterboxAnalysis::from_assets(&assets);
+
+        // Test JSON serialization
+        let json = serde_json::to_string_pretty(&analysis).expect("should serialize to JSON");
+        assert!(json.contains("total_pairs"));
+        assert!(json.contains("total_space_recoverable"));
+        assert!(json.contains("keeper"));
+        assert!(json.contains("delete"));
+
+        // Test JSON deserialization round-trip
+        let parsed: LetterboxAnalysis =
+            serde_json::from_str(&json).expect("should deserialize from JSON");
+        assert_eq!(parsed.total_pairs, analysis.total_pairs);
+        assert_eq!(
+            parsed.total_space_recoverable,
+            analysis.total_space_recoverable
+        );
+    }
+
+    #[test]
+    fn test_letterbox_analysis_empty() {
+        let assets: Vec<AssetResponse> = vec![];
+        let analysis = LetterboxAnalysis::from_assets(&assets);
+
+        assert_eq!(analysis.total_pairs, 0);
+        assert_eq!(analysis.pairs.len(), 0);
+        assert_eq!(analysis.total_space_recoverable, 0);
+        assert_eq!(analysis.skipped_non_iphone, 0);
+        assert_eq!(analysis.skipped_ambiguous, 0);
     }
 }
