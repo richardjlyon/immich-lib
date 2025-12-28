@@ -7,7 +7,7 @@ Build a Rust library for the Immich API focused on duplicate management, paired 
 ## Milestones
 
 - ✅ [v1.0 MVP](milestones/v1.0-ROADMAP.md) (Phases 1-7) - SHIPPED 2025-12-27
-- 🚧 **v1.1 iPhone Letterbox Duplicates** - Phases 8-11 (in progress)
+- ✅ [v1.1 iPhone Letterbox Duplicates](milestones/v1.1-ROADMAP.md) (Phases 8-10) - SHIPPED 2025-12-28
 
 ## Completed Milestones
 
@@ -72,45 +72,30 @@ Build a Rust library for the Immich API focused on duplicate management, paired 
 
 </details>
 
-### 🚧 v1.1 iPhone Letterbox Duplicates (In Progress)
+<details>
+<summary>v1.1 iPhone Letterbox Duplicates (Phases 8-10) - SHIPPED 2025-12-28</summary>
 
-**Milestone Goal:** Detect and remove iPhone 4:3/16:9 crop duplicates - pairs where one is the full 4:3 sensor capture and one is a 16:9 crop of the same moment.
-
-#### Phase 8: Research ✓
+### Phase 8: Research
 **Goal**: Investigate iPhone EXIF patterns and metadata signals for crop pairs
-**Depends on**: v1.0 complete
-**Completed**: 2025-12-28
+**Plans**: 1 | **Completed**: 2025-12-28
 
-Plans:
 - [x] 08-01: Document iPhone 16:9 crop patterns
 
-**Key Findings** (see DISCOVERY.md):
-- `Live Photo Video Index` links pairs but NOT exposed by Immich API
-- Fallback: timestamp + make + model + GPS matching
-- No pixel analysis needed - pure metadata detection
-- Selection: 4:3 always wins (more pixels, full scene)
-
-#### Phase 9: Detection + Selection
+### Phase 9: Detection + Selection
 **Goal**: Find candidate pairs and select keeper using timestamp + camera matching
-**Depends on**: Phase 8 (research findings)
-**Research**: Unlikely (approach documented)
-**Status**: Complete
-**Completed**: 2025-12-28
+**Plans**: 2 | **Completed**: 2025-12-28
 
-Plans:
 - [x] 09-01: Letterbox Module Core (AspectRatio, LetterboxPair, pairing algorithm)
 - [x] 09-02: Analysis Report (LetterboxAnalysis, ImmichClient integration)
 
-#### Phase 10: CLI Command
+### Phase 10: CLI Command
 **Goal**: Implement `letterbox` subcommand with analyze/execute/verify workflow
-**Depends on**: Phase 9
-**Research**: Unlikely (follows existing CLI patterns)
-**Status**: Complete
-**Completed**: 2025-12-28
+**Plans**: 2 | **Completed**: 2025-12-28
 
-Plans:
 - [x] 10-01: Analyze + Verify (letterbox analyze, letterbox verify commands)
 - [x] 10-02: Execute (letterbox execute with backup-before-delete)
+
+</details>
 
 ## Progress
 

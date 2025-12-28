@@ -1,21 +1,27 @@
 # immich-lib
 
-## Current State (Updated: 2025-12-27)
+## Current State (Updated: 2025-12-28)
 
-**Shipped:** v1.0 MVP (2025-12-27)
+**Shipped:** v1.1 iPhone Letterbox Duplicates (2025-12-28)
 **Status:** Ready for production use
-**Codebase:** 6,880 lines of Rust, reqwest/tokio/serde/clap stack
+**Codebase:** 6,882 lines of Rust, reqwest/tokio/serde/clap stack
 
 ### What's Working
 
+**Duplicate Management (v1.0):**
 - `immich-dupes analyze` - Scans Immich duplicates, outputs scored JSON
 - `immich-dupes execute` - Downloads backups, consolidates metadata, deletes losers
 - `immich-dupes verify` - Validates end-state after execution
 - `immich-dupes restore` - Re-uploads backed-up files to Immich
 
+**Letterbox Detection (v1.1):**
+- `immich-dupes letterbox analyze` - Finds iPhone 4:3/16:9 crop pairs
+- `immich-dupes letterbox execute` - Downloads 16:9 crops, then deletes
+- `immich-dupes letterbox verify` - Validates keepers present, deletes removed
+
 ### Validated Against
 
-- Docker Immich instance with 31 duplicate groups
+- Docker Immich instance with 31 duplicate groups (v1.0)
 - All winner selections correct (largest dimensions)
 - All metadata consolidations successful (GPS, timezone)
 - All backups downloaded and restorable
@@ -23,7 +29,7 @@
 ---
 
 <details>
-<summary>Original Vision (v1.0 - Reference)</summary>
+<summary>v1.0 MVP (Reference)</summary>
 
 ## Vision
 
