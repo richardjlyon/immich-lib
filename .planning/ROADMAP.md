@@ -105,12 +105,12 @@ Build a Rust library for the Immich API focused on duplicate management, paired 
 #### Phase 11: Configuration UX
 **Goal**: Config file support with OS-native location, interactive setup, and credential persistence
 **Depends on**: Previous milestone complete
-**Research**: Likely (directories crate for OS-native paths)
-**Research topics**: `directories` crate for config paths, interactive terminal prompts in Rust
-**Plans**: TBD
+**Research**: Complete (Level 1 - directories + dialoguer crates verified)
+**Plans**: 2
 
 Plans:
-- [ ] 11-01: TBD (run /gsd:plan-phase 11 to break down)
+- [x] 11-01: Config Module (directories + toml, load/save, CLI integration)
+- [ ] 11-02: Interactive Setup (dialoguer prompts, --save flag, credential persistence)
 
 ## Progress
 
@@ -129,4 +129,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Research | v1.1 | 1/1 | Complete | 2025-12-28 |
 | 9. Detection + Selection | v1.1 | 2/2 | Complete | 2025-12-28 |
 | 10. CLI Command | v1.1 | 2/2 | Complete | 2025-12-28 |
-| 11. Configuration UX | v1.2 | 0/? | Not started | - |
+| 11. Configuration UX | v1.2 | 1/2 | In progress | - |

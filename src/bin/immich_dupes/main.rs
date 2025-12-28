@@ -1,5 +1,7 @@
 //! CLI tool for managing Immich duplicates with metadata-aware selection.
 
+mod config;
+
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::num::NonZeroU32;
@@ -267,18 +269,43 @@ struct VerificationReport {
     anomalies: Vec<String>,
 }
 
+/// Resolves credentials from CLI args and config file.
+///
+/// Priority: CLI args (which include env vars via clap) > config file
+fn resolve_credentials(
+    cli_url: Option<&str>,
+    cli_api_key: Option<&str>,
+    config: &config::Config,
+) -> (Option<String>, Option<String>) {
+    let url = cli_url
+        .map(String::from)
+        .or_else(|| config.server.url.clone());
+    let api_key = cli_api_key
+        .map(String::from)
+        .or_else(|| config.server.api_key.clone());
+    (url, api_key)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load .env file if present
     let _ = dotenvy::dotenv();
 
+    // Load config file
+    let config = config::load();
+
     let args = Args::parse();
 
     match args.command {
         Commands::Analyze { output } => {
-            let url = args.url.as_ref().context("IMMICH_URL is required for analyze command")?;
-            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for analyze command")?;
-            run_analyze(url, api_key, &output).await?;
+            let (url, api_key) = resolve_credentials(
+                args.url.as_deref(),
+                args.api_key.as_deref(),
+                &config,
+            );
+            let url = url.context("IMMICH_URL is required for analyze command")?;
+            let api_key = api_key.context("IMMICH_API_KEY is required for analyze command")?;
+            run_analyze(&url, &api_key, &output).await?;
         }
         Commands::Execute {
             input,
@@ -289,11 +316,16 @@ async fn main() -> Result<()> {
             skip_review,
             yes,
         } => {
-            let url = args.url.as_ref().context("IMMICH_URL is required for execute command")?;
-            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for execute command")?;
+            let (url, api_key) = resolve_credentials(
+                args.url.as_deref(),
+                args.api_key.as_deref(),
+                &config,
+            );
+            let url = url.context("IMMICH_URL is required for execute command")?;
+            let api_key = api_key.context("IMMICH_API_KEY is required for execute command")?;
             run_execute(
-                url,
-                api_key,
+                &url,
+                &api_key,
                 &input,
                 &backup_dir,
                 force,
@@ -305,34 +337,54 @@ async fn main() -> Result<()> {
             .await?;
         }
         Commands::Verify { analysis_json, format } => {
-            let url = args.url.as_ref().context("IMMICH_URL is required for verify command")?;
-            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for verify command")?;
-            run_verify(url, api_key, &analysis_json, &format).await?;
+            let (url, api_key) = resolve_credentials(
+                args.url.as_deref(),
+                args.api_key.as_deref(),
+                &config,
+            );
+            let url = url.context("IMMICH_URL is required for verify command")?;
+            let api_key = api_key.context("IMMICH_API_KEY is required for verify command")?;
+            run_verify(&url, &api_key, &analysis_json, &format).await?;
         }
         Commands::FindTestCandidates {
             format,
             scenario,
             output,
         } => {
-            let url = args.url.as_ref().context("IMMICH_URL is required for find-test-candidates command")?;
-            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for find-test-candidates command")?;
-            run_find_test_candidates(url, api_key, &format, scenario.as_deref(), output.as_ref())
+            let (url, api_key) = resolve_credentials(
+                args.url.as_deref(),
+                args.api_key.as_deref(),
+                &config,
+            );
+            let url = url.context("IMMICH_URL is required for find-test-candidates command")?;
+            let api_key = api_key.context("IMMICH_API_KEY is required for find-test-candidates command")?;
+            run_find_test_candidates(&url, &api_key, &format, scenario.as_deref(), output.as_ref())
                 .await?;
         }
         Commands::GenerateFixtures { output_dir, scenario } => {
             run_generate_fixtures(&output_dir, scenario.as_deref())?;
         }
         Commands::Restore { backup_dir, dry_run } => {
-            let url = args.url.as_ref().context("IMMICH_URL is required for restore command")?;
-            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for restore command")?;
-            run_restore(url, api_key, &backup_dir, dry_run).await?;
+            let (url, api_key) = resolve_credentials(
+                args.url.as_deref(),
+                args.api_key.as_deref(),
+                &config,
+            );
+            let url = url.context("IMMICH_URL is required for restore command")?;
+            let api_key = api_key.context("IMMICH_API_KEY is required for restore command")?;
+            run_restore(&url, &api_key, &backup_dir, dry_run).await?;
         }
         Commands::Letterbox { command } => {
-            let url = args.url.as_ref().context("IMMICH_URL is required for letterbox command")?;
-            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for letterbox command")?;
+            let (url, api_key) = resolve_credentials(
+                args.url.as_deref(),
+                args.api_key.as_deref(),
+                &config,
+            );
+            let url = url.context("IMMICH_URL is required for letterbox command")?;
+            let api_key = api_key.context("IMMICH_API_KEY is required for letterbox command")?;
             match command {
                 LetterboxCommands::Analyze { output } => {
-                    run_letterbox_analyze(url, api_key, &output).await?;
+                    run_letterbox_analyze(&url, &api_key, &output).await?;
                 }
                 LetterboxCommands::Execute {
                     input,
@@ -341,10 +393,10 @@ async fn main() -> Result<()> {
                     rate_limit,
                     yes,
                 } => {
-                    run_letterbox_execute(url, api_key, &input, &backup_dir, force, rate_limit, yes).await?;
+                    run_letterbox_execute(&url, &api_key, &input, &backup_dir, force, rate_limit, yes).await?;
                 }
                 LetterboxCommands::Verify { analysis_json, format } => {
-                    run_letterbox_verify(url, api_key, &analysis_json, &format).await?;
+                    run_letterbox_verify(&url, &api_key, &analysis_json, &format).await?;
                 }
             }
         }
