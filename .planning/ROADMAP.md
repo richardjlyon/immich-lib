@@ -102,13 +102,14 @@ Plans:
 - [x] 09-02: Analysis Report (LetterboxAnalysis, ImmichClient integration)
 
 #### Phase 10: CLI Command
-**Goal**: Implement `letterbox` subcommand with analyze/execute workflow
+**Goal**: Implement `letterbox` subcommand with analyze/execute/verify workflow
 **Depends on**: Phase 9
 **Research**: Unlikely (follows existing CLI patterns)
-**Plans**: TBD
+**Status**: In progress
 
 Plans:
-- [ ] 10-01: TBD
+- [x] 10-01: Analyze + Verify (letterbox analyze, letterbox verify commands)
+- [ ] 10-02: Execute (letterbox execute with backup-before-delete)
 
 ## Progress
 
@@ -126,4 +127,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Live Instance Validation | v1.0 | 3/3 | Complete | 2025-12-27 |
 | 8. Research | v1.1 | 1/1 | Complete | 2025-12-28 |
 | 9. Detection + Selection | v1.1 | 2/2 | Complete | 2025-12-28 |
-| 10. CLI Command | v1.1 | 0/? | Not started | - |
+| 10. CLI Command | v1.1 | 1/2 | In progress | - |

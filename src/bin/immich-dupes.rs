@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use immich_lib::models::ExecutionConfig;
 use immich_lib::testing::{all_fixtures, detect_scenarios, format_report, generate_image, ScenarioReport};
-use immich_lib::{DuplicateAnalysis, Executor, ImmichClient};
+use immich_lib::{DuplicateAnalysis, Executor, ImmichClient, LetterboxAnalysis};
 
 /// Immich duplicate manager - prioritizes metadata completeness over file size
 #[derive(Parser, Debug)]
@@ -115,6 +115,32 @@ enum Commands {
         /// Preview what would be restored without uploading
         #[arg(long, default_value = "false")]
         dry_run: bool,
+    },
+
+    /// Letterbox duplicate management (iPhone 4:3/16:9 pairs)
+    Letterbox {
+        #[command(subcommand)]
+        command: LetterboxCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum LetterboxCommands {
+    /// Analyze all assets for letterbox pairs and output results to JSON
+    Analyze {
+        /// Output file path for JSON results
+        #[arg(short, long)]
+        output: PathBuf,
+    },
+
+    /// Verify post-execution state: check keepers exist, deletes removed
+    Verify {
+        /// Path to the letterbox analysis JSON that was used for execution
+        analysis_json: PathBuf,
+
+        /// Output format (text or json)
+        #[arg(long, default_value = "text")]
+        format: String,
     },
 }
 
@@ -274,6 +300,18 @@ async fn main() -> Result<()> {
             let url = args.url.as_ref().context("IMMICH_URL is required for restore command")?;
             let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for restore command")?;
             run_restore(url, api_key, &backup_dir, dry_run).await?;
+        }
+        Commands::Letterbox { command } => {
+            let url = args.url.as_ref().context("IMMICH_URL is required for letterbox command")?;
+            let api_key = args.api_key.as_ref().context("IMMICH_API_KEY is required for letterbox command")?;
+            match command {
+                LetterboxCommands::Analyze { output } => {
+                    run_letterbox_analyze(url, api_key, &output).await?;
+                }
+                LetterboxCommands::Verify { analysis_json, format } => {
+                    run_letterbox_verify(url, api_key, &analysis_json, &format).await?;
+                }
+            }
         }
     }
 
@@ -1008,6 +1046,264 @@ async fn run_restore(url: &str, api_key: &str, backup_dir: &PathBuf, dry_run: bo
     if failure_count > 0 {
         println!();
         println!("WARNING: {} files failed to upload. Check errors above.", failure_count);
+    }
+
+    Ok(())
+}
+
+async fn run_letterbox_analyze(url: &str, api_key: &str, output: &PathBuf) -> Result<()> {
+    println!("Connecting to Immich server at {}...", url);
+
+    // Create client
+    let client = ImmichClient::new(url, api_key).context("Failed to create Immich client")?;
+
+    // Fetch all assets with pagination
+    println!("Fetching all assets...");
+    let assets = client
+        .get_all_assets()
+        .await
+        .context("Failed to fetch assets from Immich")?;
+
+    println!("Analyzing {} assets for letterbox pairs...", assets.len());
+
+    // Run letterbox analysis
+    let analysis = LetterboxAnalysis::from_assets(&assets);
+
+    // Write JSON to file
+    let file = File::create(output)
+        .with_context(|| format!("Failed to create output file: {}", output.display()))?;
+    let writer = BufWriter::new(file);
+    serde_json::to_writer_pretty(writer, &analysis)
+        .context("Failed to write JSON output")?;
+
+    // Print summary
+    println!();
+    println!("Letterbox Analysis Complete!");
+    println!();
+    println!("Pairs found:          {}", analysis.total_pairs);
+    println!("Space recoverable:    {:.2} MB", analysis.total_space_recoverable as f64 / 1_048_576.0);
+    println!("Skipped (non-iPhone): {}", analysis.skipped_non_iphone);
+    println!("Skipped (ambiguous):  {}", analysis.skipped_ambiguous);
+    println!();
+    println!("Output written to: {}", output.display());
+
+    Ok(())
+}
+
+/// Verification result for a letterbox pair
+#[derive(Debug, Serialize)]
+struct LetterboxPairVerification {
+    /// Shared capture timestamp
+    timestamp: String,
+    /// Status of the keeper (4:3) asset
+    keeper_status: AssetStatus,
+    /// Status of the delete (16:9) asset
+    delete_status: AssetStatus,
+}
+
+/// Full verification report for letterbox execution
+#[derive(Debug, Serialize)]
+struct LetterboxVerificationReport {
+    /// When verification was performed
+    verified_at: DateTime<Utc>,
+    /// Server URL
+    server_url: String,
+    /// Total pairs verified
+    pairs_verified: usize,
+    /// Keepers confirmed present
+    keepers_present: usize,
+    /// Keepers missing (should not happen)
+    keepers_missing: usize,
+    /// Deletes confirmed removed (404 or trashed)
+    deletes_removed: usize,
+    /// Deletes still present (should not happen after execute)
+    deletes_still_present: usize,
+    /// Per-pair verification results
+    pairs: Vec<LetterboxPairVerification>,
+    /// Any anomalies detected
+    anomalies: Vec<String>,
+}
+
+async fn run_letterbox_verify(url: &str, api_key: &str, analysis_json: &PathBuf, format: &str) -> Result<()> {
+    println!("Verifying letterbox post-execution state...");
+    println!("Analysis file: {}", analysis_json.display());
+    println!();
+
+    // Load letterbox analysis JSON
+    let file = File::open(analysis_json)
+        .with_context(|| format!("Failed to open analysis file: {}", analysis_json.display()))?;
+    let reader = BufReader::new(file);
+    let analysis: LetterboxAnalysis = serde_json::from_reader(reader)
+        .context("Failed to parse letterbox analysis JSON")?;
+
+    // Create client
+    let client = ImmichClient::new(url, api_key).context("Failed to create Immich client")?;
+
+    let mut pairs_verified = 0;
+    let mut keepers_present = 0;
+    let mut keepers_missing = 0;
+    let mut deletes_removed = 0;
+    let mut deletes_still_present = 0;
+    let mut pair_results = Vec::new();
+    let mut anomalies = Vec::new();
+
+    println!("Checking {} pairs...", analysis.pairs.len());
+    println!();
+
+    for pair in &analysis.pairs {
+        pairs_verified += 1;
+
+        // Check keeper exists
+        let keeper_status = match client.get_asset(&pair.keeper.id).await {
+            Ok(_asset) => {
+                keepers_present += 1;
+                AssetStatus {
+                    asset_id: pair.keeper.id.clone(),
+                    filename: pair.keeper.original_file_name.clone(),
+                    status: "present".to_string(),
+                    error: None,
+                }
+            }
+            Err(immich_lib::ImmichError::Api { status: 404, .. }) => {
+                keepers_missing += 1;
+                anomalies.push(format!(
+                    "CRITICAL: Keeper {} ({}) was deleted!",
+                    pair.keeper.id, pair.keeper.original_file_name
+                ));
+                AssetStatus {
+                    asset_id: pair.keeper.id.clone(),
+                    filename: pair.keeper.original_file_name.clone(),
+                    status: "deleted".to_string(),
+                    error: Some("Keeper was incorrectly deleted".to_string()),
+                }
+            }
+            Err(e) => {
+                keepers_missing += 1;
+                anomalies.push(format!(
+                    "Error checking keeper {}: {}",
+                    pair.keeper.id, e
+                ));
+                AssetStatus {
+                    asset_id: pair.keeper.id.clone(),
+                    filename: pair.keeper.original_file_name.clone(),
+                    status: "error".to_string(),
+                    error: Some(e.to_string()),
+                }
+            }
+        };
+
+        // Check delete is gone (404) or trashed
+        let delete_status = match client.get_asset(&pair.delete.id).await {
+            Ok(asset) => {
+                if asset.is_trashed {
+                    // Delete is in trash - this counts as removed
+                    deletes_removed += 1;
+                    AssetStatus {
+                        asset_id: pair.delete.id.clone(),
+                        filename: pair.delete.original_file_name.clone(),
+                        status: "trashed".to_string(),
+                        error: None,
+                    }
+                } else {
+                    // Delete still exists and not trashed - this is wrong!
+                    deletes_still_present += 1;
+                    anomalies.push(format!(
+                        "Delete {} ({}) still exists (not trashed), should be deleted",
+                        pair.delete.id, pair.delete.original_file_name
+                    ));
+                    AssetStatus {
+                        asset_id: pair.delete.id.clone(),
+                        filename: pair.delete.original_file_name.clone(),
+                        status: "present".to_string(),
+                        error: Some("Delete should have been removed".to_string()),
+                    }
+                }
+            }
+            Err(immich_lib::ImmichError::Api { status: 404, .. }) => {
+                // Delete correctly removed (permanently deleted)
+                deletes_removed += 1;
+                AssetStatus {
+                    asset_id: pair.delete.id.clone(),
+                    filename: pair.delete.original_file_name.clone(),
+                    status: "deleted".to_string(),
+                    error: None,
+                }
+            }
+            Err(e) => {
+                // Some other error
+                anomalies.push(format!(
+                    "Error checking delete {}: {}",
+                    pair.delete.id, e
+                ));
+                AssetStatus {
+                    asset_id: pair.delete.id.clone(),
+                    filename: pair.delete.original_file_name.clone(),
+                    status: "error".to_string(),
+                    error: Some(e.to_string()),
+                }
+            }
+        };
+
+        pair_results.push(LetterboxPairVerification {
+            timestamp: pair.timestamp.clone(),
+            keeper_status,
+            delete_status,
+        });
+
+        // Progress indicator
+        if pairs_verified % 10 == 0 {
+            print!(".");
+            std::io::stdout().flush()?;
+        }
+    }
+    if !analysis.pairs.is_empty() {
+        println!();
+        println!();
+    }
+
+    // Build report
+    let report = LetterboxVerificationReport {
+        verified_at: Utc::now(),
+        server_url: url.to_string(),
+        pairs_verified,
+        keepers_present,
+        keepers_missing,
+        deletes_removed,
+        deletes_still_present,
+        pairs: pair_results,
+        anomalies: anomalies.clone(),
+    };
+
+    // Output based on format
+    match format.to_lowercase().as_str() {
+        "json" => {
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
+        _ => {
+            println!("Letterbox Verification Report");
+            println!("=============================");
+            println!();
+            println!("Pairs verified:        {}", pairs_verified);
+            println!("Keepers present:       {}/{}", keepers_present, pairs_verified);
+            println!("Keepers missing:       {}", keepers_missing);
+            println!("Deletes removed:       {}", deletes_removed);
+            println!("Deletes still present: {}", deletes_still_present);
+
+            if !anomalies.is_empty() {
+                println!();
+                println!("Anomalies ({}):", anomalies.len());
+                for anomaly in &anomalies {
+                    println!("  - {}", anomaly);
+                }
+            }
+
+            println!();
+            if keepers_missing == 0 && deletes_still_present == 0 {
+                println!("VERIFICATION PASSED");
+            } else {
+                println!("VERIFICATION FAILED");
+            }
+        }
     }
 
     Ok(())
