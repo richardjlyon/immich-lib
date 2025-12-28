@@ -1,6 +1,6 @@
 # immich-dupes
 
-**v1.1** - [Changelog](CHANGELOG.md)
+[Changelog](CHANGELOG.md)
 
 > **Warning: External Libraries Not Supported**
 >
