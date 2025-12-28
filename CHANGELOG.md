@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.2.0] - 2025-12-28
+
+### Added
+- **Configuration File Support** - Credentials saved to OS-native config locations
+  - macOS: `~/Library/Application Support/immich-dupes/config.toml`
+  - Linux: `~/.config/immich-dupes/config.toml`
+  - Windows: `AppData/Roaming/immich-dupes/config.toml`
+- **Interactive Prompts** - URL and API key prompts when credentials not provided
+- **`--save` Flag** - Persist credentials after successful command execution
+- **Credential Resolution Chain** - CLI args > env vars > config file > interactive prompt
+
 ## [1.1.0] - 2025-12-28
 
 ### Added

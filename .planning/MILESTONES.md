@@ -1,5 +1,32 @@
 # Project Milestones: immich-lib
 
+## v1.2 Configuration UX (Shipped: 2025-12-28)
+
+**Delivered:** Config file support with OS-native location, interactive setup prompts, and credential persistence for improved UX.
+
+**Phases completed:** 11 (2 plans total)
+
+**Key accomplishments:**
+
+- Config module with OS-native paths via directories crate (macOS/Linux/Windows)
+- TOML configuration format for human-readable settings
+- CLI credential resolution chain: CLI args > env vars > config file > error
+- Interactive credential prompts with dialoguer (URL validation, hidden API key)
+- --save flag for credential persistence after successful commands
+
+**Stats:**
+
+- 9 files created/modified
+- 9,004 lines of Rust (total)
+- 1 phase, 2 plans
+- Same day execution (2025-12-28, ~13 min)
+
+**Git range:** `feat(11-01)` → `feat(11-02)`
+
+**What's next:** Production use with simplified credential management
+
+---
+
 ## v1.1 iPhone Letterbox Duplicates (Shipped: 2025-12-28)
 
 **Delivered:** Detect and remove iPhone 4:3/16:9 crop duplicates using timestamp + camera matching, keeping the full 4:3 sensor capture.

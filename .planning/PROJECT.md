@@ -2,9 +2,9 @@
 
 ## Current State (Updated: 2025-12-28)
 
-**Shipped:** v1.1 iPhone Letterbox Duplicates (2025-12-28)
+**Shipped:** v1.2 Configuration UX (2025-12-28)
 **Status:** Ready for production use
-**Codebase:** 6,882 lines of Rust, reqwest/tokio/serde/clap stack
+**Codebase:** 9,004 lines of Rust, reqwest/tokio/serde/clap/dialoguer stack
 
 ### What's Working
 
@@ -18,6 +18,12 @@
 - `immich-dupes letterbox analyze` - Finds iPhone 4:3/16:9 crop pairs
 - `immich-dupes letterbox execute` - Downloads 16:9 crops, then deletes
 - `immich-dupes letterbox verify` - Validates keepers present, deletes removed
+
+**Configuration UX (v1.2):**
+- Interactive credential prompts when URL/API key not provided
+- Config file support with OS-native locations (macOS/Linux/Windows)
+- `--save` flag to persist credentials after successful command
+- Credential resolution: CLI args > env vars > config file > prompt
 
 ### Validated Against
 
