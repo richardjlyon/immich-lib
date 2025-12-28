@@ -125,27 +125,52 @@ impl ImmichClient {
     pub async fn get_all_assets(&self) -> Result<Vec<AssetResponse>> {
         const PAGE_SIZE: usize = 1000;
         let mut all_assets = Vec::new();
-        let mut skip: usize = 0;
+        let mut page: usize = 1;
+
+        // Response structure from POST /search/metadata
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct AssetSearchResult {
+            items: Vec<AssetResponse>,
+            next_page: Option<String>,
+        }
+
+        #[derive(Deserialize)]
+        struct SearchResponse {
+            assets: AssetSearchResult,
+        }
+
+        let url = self.base_url.join("/api/search/metadata")?;
 
         loop {
-            let mut url = self.base_url.join("/api/assets")?;
-            url.query_pairs_mut()
-                .append_pair("take", &PAGE_SIZE.to_string())
-                .append_pair("skip", &skip.to_string());
+            let body = serde_json::json!({
+                "page": page,
+                "size": PAGE_SIZE,
+                "withExif": true
+            });
 
-            let response = self.client.get(url).send().await?;
-            let page: Vec<AssetResponse> = self.handle_response(response).await?;
+            let response = self.client.post(url.clone()).json(&body).send().await?;
+            let search_result: SearchResponse = self.handle_response(response).await?;
 
-            if page.is_empty() {
+            if search_result.assets.items.is_empty() {
                 break;
             }
 
             // Filter out trashed assets
-            let non_trashed: Vec<AssetResponse> =
-                page.into_iter().filter(|a| !a.is_trashed).collect();
+            let non_trashed: Vec<AssetResponse> = search_result
+                .assets
+                .items
+                .into_iter()
+                .filter(|a| !a.is_trashed)
+                .collect();
             all_assets.extend(non_trashed);
 
-            skip += PAGE_SIZE;
+            // Check if there are more pages
+            if search_result.assets.next_page.is_none() {
+                break;
+            }
+
+            page += 1;
         }
 
         Ok(all_assets)

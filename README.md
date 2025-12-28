@@ -8,6 +8,10 @@
 
 A Rust CLI tool for intelligent Immich duplicate management. Unlike Immich's built-in de-duplication which favors larger files, this tool selects the highest-quality image by dimensions while preserving metadata through consolidation.
 
+**Features:**
+- Smart duplicate removal with metadata preservation
+- iPhone letterbox detection (4:3 vs 16:9 crop pairs)
+
 ## The Problem
 
 Immich's duplicate detection works well, but its resolution logic is naive: keep the largest file, trash the rest. This ignores that:
@@ -115,6 +119,41 @@ immich-dupes verify analysis.json
 # 5. If needed, restore
 immich-dupes restore -b ./backups
 ```
+
+## iPhone Letterbox Detection
+
+iPhones can save photos in both 4:3 (full sensor) and 16:9 (cropped) formats simultaneously. This creates near-duplicate pairs that Immich's CLIP-based detection doesn't catch because they're semantically identical but have different aspect ratios.
+
+The `letterbox` command finds and removes these pairs:
+
+```bash
+# 1. Analyze for letterbox pairs
+immich-dupes letterbox analyze -o letterbox.json
+
+# 2. Review the analysis
+cat letterbox.json | jq '.pairs | length'  # Count of pairs found
+
+# 3. Execute removal (backs up 16:9 crops, keeps 4:3 originals)
+immich-dupes letterbox execute -i letterbox.json -b ./letterbox-backups
+
+# 4. Verify results
+immich-dupes letterbox verify letterbox.json
+```
+
+### How It Works
+
+1. **Detection** - Matches photos by timestamp + camera make/model + GPS
+2. **Selection** - Always keeps the 4:3 version (more pixels, full scene)
+3. **Backup** - Downloads 16:9 crops before deletion
+4. **Cleanup** - Moves 16:9 crops to trash (or deletes with `--force`)
+
+### Output
+
+The analysis shows:
+- Pairs found (4:3 + 16:9 matches)
+- Space recoverable (size of 16:9 files to delete)
+- Skipped non-iPhone assets
+- Skipped ambiguous groups (multiple candidates)
 
 ## What Gets Consolidated
 

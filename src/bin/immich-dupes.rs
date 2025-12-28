@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
 use governor::{Quota, RateLimiter};
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 
 use immich_lib::models::ExecutionConfig;
@@ -1457,13 +1458,21 @@ async fn run_letterbox_execute(
 
     let total = analysis.pairs.len();
 
+    // Create progress bar
+    let pb = ProgressBar::new(total as u64);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} pairs ({eta})")
+            .expect("valid template")
+            .progress_chars("##-"),
+    );
+
     // Process each pair
-    for (i, pair) in analysis.pairs.iter().enumerate() {
+    for pair in analysis.pairs.iter() {
         let delete_id = &pair.delete.id;
         let delete_filename = &pair.delete.original_file_name;
 
-        print!("[{}/{}] {}... ", i + 1, total, delete_filename);
-        std::io::stdout().flush()?;
+        pb.set_message(delete_filename.clone());
 
         // Rate limit
         rate_limiter.until_ready().await;
@@ -1488,7 +1497,6 @@ async fn run_letterbox_execute(
                 match delete_result {
                     Ok(_) => {
                         deleted_count += 1;
-                        println!("OK");
                         results.push(LetterboxPairResult {
                             timestamp: pair.timestamp.clone(),
                             keeper_id: pair.keeper.id.clone(),
@@ -1500,7 +1508,6 @@ async fn run_letterbox_execute(
                     }
                     Err(e) => {
                         failed_count += 1;
-                        println!("download OK, delete FAILED: {}", e);
                         results.push(LetterboxPairResult {
                             timestamp: pair.timestamp.clone(),
                             keeper_id: pair.keeper.id.clone(),
@@ -1515,7 +1522,6 @@ async fn run_letterbox_execute(
             Err(e) => {
                 failed_count += 1;
                 skipped_count += 1;
-                println!("download FAILED: {}", e);
                 results.push(LetterboxPairResult {
                     timestamp: pair.timestamp.clone(),
                     keeper_id: pair.keeper.id.clone(),
@@ -1526,7 +1532,10 @@ async fn run_letterbox_execute(
                 });
             }
         }
+        pb.inc(1);
     }
+
+    pb.finish_and_clear();
 
     // Print summary
     println!();
