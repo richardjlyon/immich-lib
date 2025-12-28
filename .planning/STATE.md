@@ -18,19 +18,19 @@
 
 ## Current Position
 
-Phase: 8 of 11 (Research)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2025-12-28 - Milestone v1.1 created
+Phase: 8 of 10 (Research)
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2025-12-28 - Completed 08-01-PLAN.md
 
-Progress: ░░░░░░░░░░░░░░░░░░░░ 0% (0/? plans in v1.1)
+Progress: █░░░░░░░░░ 10% (1/? plans in v1.1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
-- Average duration: 14 min
-- Total execution time: 318 min
+- Total plans completed: 24
+- Average duration: 13 min
+- Total execution time: 320 min
 
 **By Phase:**
 
@@ -43,10 +43,11 @@ Progress: ░░░░░░░░░░░░░░░░░░░░ 0% (0/? p
 | 5 | 4/4 | 81 min | 20 min |
 | 6 | 11/11 | 199 min | 18 min |
 | 7 | 3/3 | 45 min | 15 min |
+| 8 | 1/1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-05.2-01 (18 min), 06-05-03 (45 min), 07-01 (27 min), 07-02 (10 min), 07-03 (8 min)
-- Trend: All phases complete, tool validated for production
+- Last 5 plans: 06-05-03 (45 min), 07-01 (27 min), 07-02 (10 min), 07-03 (8 min), 08-01 (2 min)
+- Trend: v1.1 research complete, implementation phases next
 
 *Updated after each plan completion*
 
@@ -111,6 +112,10 @@ Progress: ░░░░░░░░░░░░░░░░░░░░ 0% (0/? p
 | 07-02 | Trashed = deleted for verification | Both trashed and 404 assets count as deleted |
 | 07-03 | Strip UUID prefix from backup filenames | Restores original filename when re-uploading |
 | 07-03 | Device ID = "immich-dupes-restore" | Traceability for restored assets |
+| 08-01 | Timestamp+camera pairing | Live Photo Video Index not exposed by Immich API |
+| 08-01 | 4:3 always wins selection | More pixels, complete scene, can crop later |
+| 08-01 | No pixel analysis needed | Detection purely metadata-based via Immich API |
+| 08-01 | Consolidate to 3 phases | Original 4 phases → 3 (eliminated pixel analysis) |
 
 ### Roadmap Evolution
 
@@ -118,6 +123,7 @@ Progress: ░░░░░░░░░░░░░░░░░░░░ 0% (0/? p
 |------|--------|--------|
 | 2025-12-27 | Inserted 06-05.2 after 06-05-02 | Base image reuse causes CLIP to group unrelated scenarios together |
 | 2025-12-28 | Created milestone v1.1 | iPhone letterbox duplicates, 4 phases (8-11) |
+| 2025-12-28 | Consolidated v1.1 to 3 phases (8-10) | Research showed no pixel analysis needed; Phase 11 eliminated |
 
 ### Deferred Issues
 
@@ -137,6 +143,6 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-28
-Stopped at: Milestone v1.1 initialization
+Stopped at: Completed 08-01-PLAN.md (Phase 8 complete)
 Resume file: None
-Note: Starting v1.1 - iPhone letterbox duplicate detection. Phase 8 (Research) ready to plan.
+Note: Phase 8 Research complete. Ready to plan Phase 9: Detection + Selection (consolidated from original 9+10).
