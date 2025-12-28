@@ -1,5 +1,7 @@
 # immich-dupes
 
+**v1.1** - [Changelog](CHANGELOG.md)
+
 > **Warning: External Libraries Not Supported**
 >
 > This tool's metadata consolidation (GPS, timezone transfer) **does not work** with Immich External Libraries (library imports). Immich reads metadata from the source files for external libraries, so API updates don't persist.
