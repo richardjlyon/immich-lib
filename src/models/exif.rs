@@ -1,11 +1,11 @@
 //! EXIF metadata response types.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// EXIF metadata for an asset.
 ///
 /// Most fields are optional as EXIF data may be incomplete or missing.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExifInfo {
     /// GPS latitude

@@ -1,11 +1,11 @@
 //! Asset response types.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::exif::ExifInfo;
 
 /// Type of asset (image or video).
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum AssetType {
     /// Image file (JPEG, PNG, HEIC, etc.)
@@ -16,7 +16,7 @@ pub enum AssetType {
 }
 
 /// Asset response from the Immich API.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetResponse {
     /// Unique asset identifier

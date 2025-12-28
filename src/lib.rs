@@ -22,6 +22,7 @@
 pub mod client;
 pub mod error;
 pub mod executor;
+pub mod letterbox;
 pub mod models;
 pub mod scoring;
 pub mod testing;
