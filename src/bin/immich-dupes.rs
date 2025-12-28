@@ -2,11 +2,13 @@
 
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
+use governor::{Quota, RateLimiter};
 use serde::{Deserialize, Serialize};
 
 use immich_lib::models::ExecutionConfig;
@@ -131,6 +133,29 @@ enum LetterboxCommands {
         /// Output file path for JSON results
         #[arg(short, long)]
         output: PathBuf,
+    },
+
+    /// Execute letterbox removal: download 16:9 backups then delete
+    Execute {
+        /// Path to letterbox analysis JSON from analyze command
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Directory to download backup files to
+        #[arg(short, long)]
+        backup_dir: PathBuf,
+
+        /// Permanently delete instead of moving to trash
+        #[arg(long, default_value = "false")]
+        force: bool,
+
+        /// Max requests per second (default: 10)
+        #[arg(long, default_value = "10")]
+        rate_limit: u32,
+
+        /// Skip confirmation prompt
+        #[arg(short, long, default_value = "false")]
+        yes: bool,
     },
 
     /// Verify post-execution state: check keepers exist, deletes removed
@@ -307,6 +332,15 @@ async fn main() -> Result<()> {
             match command {
                 LetterboxCommands::Analyze { output } => {
                     run_letterbox_analyze(url, api_key, &output).await?;
+                }
+                LetterboxCommands::Execute {
+                    input,
+                    backup_dir,
+                    force,
+                    rate_limit,
+                    yes,
+                } => {
+                    run_letterbox_execute(url, api_key, &input, &backup_dir, force, rate_limit, yes).await?;
                 }
                 LetterboxCommands::Verify { analysis_json, format } => {
                     run_letterbox_verify(url, api_key, &analysis_json, &format).await?;
@@ -1305,6 +1339,228 @@ async fn run_letterbox_verify(url: &str, api_key: &str, analysis_json: &PathBuf,
             }
         }
     }
+
+    Ok(())
+}
+
+/// Execution report for letterbox removal.
+#[derive(Debug, Serialize)]
+struct LetterboxExecutionReport {
+    /// Timestamp when execution was performed
+    executed_at: DateTime<Utc>,
+    /// The server URL that was targeted
+    server_url: String,
+    /// Total pairs processed
+    total_pairs: usize,
+    /// Successfully downloaded files
+    downloaded: usize,
+    /// Successfully deleted assets
+    deleted: usize,
+    /// Failed operations
+    failed: usize,
+    /// Skipped pairs (download failed, so delete skipped)
+    skipped: usize,
+    /// Individual pair results
+    results: Vec<LetterboxPairResult>,
+}
+
+/// Result for a single letterbox pair execution.
+#[derive(Debug, Serialize)]
+struct LetterboxPairResult {
+    /// Shared capture timestamp
+    timestamp: String,
+    /// Keeper asset ID (4:3, kept)
+    keeper_id: String,
+    /// Delete asset ID (16:9, removed)
+    delete_id: String,
+    /// Download status: "success", "failed", "skipped"
+    download_status: String,
+    /// Delete status: "deleted", "trashed", "failed", "skipped"
+    delete_status: String,
+    /// Error message if any operation failed
+    error: Option<String>,
+}
+
+async fn run_letterbox_execute(
+    url: &str,
+    api_key: &str,
+    input: &PathBuf,
+    backup_dir: &PathBuf,
+    force: bool,
+    rate_limit: u32,
+    yes: bool,
+) -> Result<()> {
+    // Read and parse letterbox analysis JSON
+    let file = File::open(input)
+        .with_context(|| format!("Failed to open input file: {}", input.display()))?;
+    let reader = BufReader::new(file);
+    let analysis: LetterboxAnalysis = serde_json::from_reader(reader)
+        .context("Failed to parse letterbox analysis JSON")?;
+
+    if analysis.pairs.is_empty() {
+        println!("No letterbox pairs to process.");
+        return Ok(());
+    }
+
+    // Create backup directory if it doesn't exist
+    std::fs::create_dir_all(backup_dir)
+        .with_context(|| format!("Failed to create backup directory: {}", backup_dir.display()))?;
+
+    // Print execution summary
+    println!();
+    println!("Letterbox Execution Plan");
+    println!("========================");
+    println!("Pairs to process:     {}", analysis.pairs.len());
+    if analysis.total_space_recoverable > 0 {
+        let size_mb = analysis.total_space_recoverable as f64 / 1_048_576.0;
+        println!("Estimated disk space: {:.1} MB", size_mb);
+    }
+    println!("Backup directory:     {}", backup_dir.display());
+    println!("Force delete:         {}", if force { "yes (permanent)" } else { "no (trash)" });
+    println!();
+
+    // Confirmation prompt
+    if !yes {
+        print!(
+            "About to download {} files and delete them from Immich. Continue? [y/N] ",
+            analysis.pairs.len()
+        );
+        std::io::stdout().flush()?;
+
+        let mut response = String::new();
+        std::io::stdin().read_line(&mut response)?;
+        let response = response.trim().to_lowercase();
+
+        if response != "y" && response != "yes" {
+            println!("Aborted.");
+            return Ok(());
+        }
+    }
+
+    println!();
+    println!("Starting letterbox execution...");
+    println!();
+
+    // Create client
+    let client = ImmichClient::new(url, api_key).context("Failed to create Immich client")?;
+
+    // Set up rate limiter
+    let quota = Quota::per_second(NonZeroU32::new(rate_limit).unwrap_or(NonZeroU32::new(10).unwrap()));
+    let rate_limiter = RateLimiter::direct(quota);
+
+    // Track results
+    let mut results = Vec::new();
+    let mut downloaded_count = 0;
+    let mut deleted_count = 0;
+    let mut failed_count = 0;
+    let mut skipped_count = 0;
+
+    let total = analysis.pairs.len();
+
+    // Process each pair
+    for (i, pair) in analysis.pairs.iter().enumerate() {
+        let delete_id = &pair.delete.id;
+        let delete_filename = &pair.delete.original_file_name;
+
+        print!("[{}/{}] {}... ", i + 1, total, delete_filename);
+        std::io::stdout().flush()?;
+
+        // Rate limit
+        rate_limiter.until_ready().await;
+
+        // Build backup path with asset ID prefix
+        let safe_filename = format!("{}_{}", &delete_id[..8.min(delete_id.len())], delete_filename);
+        let backup_path = backup_dir.join(&safe_filename);
+
+        // Step 1: Download the 16:9 file
+        let download_result = client.download_asset(delete_id, &backup_path).await;
+
+        match download_result {
+            Ok(_) => {
+                downloaded_count += 1;
+
+                // Rate limit before delete
+                rate_limiter.until_ready().await;
+
+                // Step 2: Delete the asset (only if download succeeded)
+                let delete_result = client.delete_assets(std::slice::from_ref(delete_id), force).await;
+
+                match delete_result {
+                    Ok(_) => {
+                        deleted_count += 1;
+                        println!("OK");
+                        results.push(LetterboxPairResult {
+                            timestamp: pair.timestamp.clone(),
+                            keeper_id: pair.keeper.id.clone(),
+                            delete_id: delete_id.clone(),
+                            download_status: "success".to_string(),
+                            delete_status: if force { "deleted" } else { "trashed" }.to_string(),
+                            error: None,
+                        });
+                    }
+                    Err(e) => {
+                        failed_count += 1;
+                        println!("download OK, delete FAILED: {}", e);
+                        results.push(LetterboxPairResult {
+                            timestamp: pair.timestamp.clone(),
+                            keeper_id: pair.keeper.id.clone(),
+                            delete_id: delete_id.clone(),
+                            download_status: "success".to_string(),
+                            delete_status: "failed".to_string(),
+                            error: Some(e.to_string()),
+                        });
+                    }
+                }
+            }
+            Err(e) => {
+                failed_count += 1;
+                skipped_count += 1;
+                println!("download FAILED: {}", e);
+                results.push(LetterboxPairResult {
+                    timestamp: pair.timestamp.clone(),
+                    keeper_id: pair.keeper.id.clone(),
+                    delete_id: delete_id.clone(),
+                    download_status: "failed".to_string(),
+                    delete_status: "skipped".to_string(),
+                    error: Some(e.to_string()),
+                });
+            }
+        }
+    }
+
+    // Print summary
+    println!();
+    println!("Letterbox Execution Complete");
+    println!("============================");
+    println!("Pairs processed:  {}", total);
+    println!("Files downloaded: {}", downloaded_count);
+    println!("Files deleted:    {}", deleted_count);
+    println!("Failed:           {}", failed_count);
+    println!("Skipped:          {}", skipped_count);
+
+    // Build execution report
+    let report = LetterboxExecutionReport {
+        executed_at: Utc::now(),
+        server_url: url.to_string(),
+        total_pairs: total,
+        downloaded: downloaded_count,
+        deleted: deleted_count,
+        failed: failed_count,
+        skipped: skipped_count,
+        results,
+    };
+
+    // Write execution report to backup directory
+    let timestamp = Utc::now().format("%Y%m%d-%H%M%S");
+    let report_path = backup_dir.join(format!("letterbox-execution-{}.json", timestamp));
+    let report_file = File::create(&report_path)
+        .with_context(|| format!("Failed to create report file: {}", report_path.display()))?;
+    let writer = BufWriter::new(report_file);
+    serde_json::to_writer_pretty(writer, &report)
+        .context("Failed to write execution report")?;
+
+    println!();
+    println!("Execution report: {}", report_path.display());
 
     Ok(())
 }
