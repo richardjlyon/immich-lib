@@ -1,5 +1,11 @@
 # immich-dupes
 
+> **Warning: External Libraries Not Supported**
+>
+> This tool's metadata consolidation (GPS, timezone transfer) **does not work** with Immich External Libraries (library imports). Immich reads metadata from the source files for external libraries, so API updates don't persist.
+>
+> This tool only works correctly with **uploaded assets** (files uploaded via the Immich app/web/CLI that Immich manages directly).
+
 A Rust CLI tool for intelligent Immich duplicate management. Unlike Immich's built-in de-duplication which favors larger files, this tool selects the highest-quality image by dimensions while preserving metadata through consolidation.
 
 ## The Problem
@@ -75,7 +81,7 @@ This will:
 ### Verify Results
 
 ```bash
-immich-dupes verify -i duplicates.json
+immich-dupes verify duplicates.json
 ```
 
 Checks that all winners still exist and all losers have been deleted.
@@ -104,7 +110,7 @@ cat analysis.json | jq '.needs_review_count'  # See conflicts
 immich-dupes execute -i analysis.json -b ./backups --skip-review
 
 # 4. Verify the results
-immich-dupes verify -i analysis.json
+immich-dupes verify analysis.json
 
 # 5. If needed, restore
 immich-dupes restore -b ./backups
