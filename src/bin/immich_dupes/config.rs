@@ -7,9 +7,10 @@
 
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
@@ -76,7 +77,6 @@ fn load_inner() -> Result<Config> {
 ///
 /// Creates parent directories if they don't exist.
 /// Writes atomically by writing to a temp file then renaming.
-#[allow(dead_code)]
 pub fn save(config: &Config) -> Result<()> {
     let path = config_path();
 
@@ -111,6 +111,52 @@ pub fn save(config: &Config) -> Result<()> {
     })?;
 
     Ok(())
+}
+
+/// Prompts the user for Immich server credentials interactively.
+///
+/// Displays prompts for URL and API key with validation.
+/// The API key is hidden during input for security.
+///
+/// Returns a tuple of (url, api_key).
+pub fn prompt_credentials() -> Result<(String, String)> {
+    let theme = ColorfulTheme::default();
+
+    println!();
+    println!("Immich server credentials not found.");
+    println!("Please enter your server details:");
+    println!();
+
+    let url: String = Input::with_theme(&theme)
+        .with_prompt("Immich server URL")
+        .validate_with(|input: &String| {
+            if input.starts_with("http://") || input.starts_with("https://") {
+                Ok(())
+            } else {
+                Err("URL must start with http:// or https://")
+            }
+        })
+        .interact_text()
+        .context("Failed to read URL input")?;
+
+    let api_key: String = Password::with_theme(&theme)
+        .with_prompt("API key")
+        .interact()
+        .context("Failed to read API key input")?;
+
+    Ok((url, api_key))
+}
+
+/// Prompts the user to save credentials to the config file.
+///
+/// Returns true if the user confirms, false otherwise.
+pub fn prompt_save(config_path: &Path) -> bool {
+    println!();
+    Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(format!("Save credentials to {}?", config_path.display()))
+        .default(true)
+        .interact()
+        .unwrap_or(false)
 }
 
 #[cfg(test)]

@@ -33,6 +33,7 @@ dotenvy = "0.15"
 uuid = { version = "1", features = ["v4"] }
 directories = "5"
 toml = "0.8"
+dialoguer = "0.11"
 
 # Fixture generation
 image = "0.25"

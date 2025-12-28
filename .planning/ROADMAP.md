@@ -8,7 +8,7 @@ Build a Rust library for the Immich API focused on duplicate management, paired 
 
 - ✅ [v1.0 MVP](milestones/v1.0-ROADMAP.md) (Phases 1-7) - SHIPPED 2025-12-27
 - ✅ [v1.1 iPhone Letterbox Duplicates](milestones/v1.1-ROADMAP.md) (Phases 8-10) - SHIPPED 2025-12-28
-- 🚧 **v1.2 Configuration UX** - Phase 11 (in progress)
+- ✅ **v1.2 Configuration UX** (Phase 11) - SHIPPED 2025-12-28
 
 ## Completed Milestones
 
@@ -98,7 +98,7 @@ Build a Rust library for the Immich API focused on duplicate management, paired 
 
 </details>
 
-### 🚧 v1.2 Configuration UX (In Progress)
+### ✅ v1.2 Configuration UX (Complete)
 
 **Milestone Goal:** Add config file support with OS-native location, interactive setup prompts, and credential persistence
 
@@ -106,11 +106,11 @@ Build a Rust library for the Immich API focused on duplicate management, paired 
 **Goal**: Config file support with OS-native location, interactive setup, and credential persistence
 **Depends on**: Previous milestone complete
 **Research**: Complete (Level 1 - directories + dialoguer crates verified)
-**Plans**: 2
+**Plans**: 2 | **Completed**: 2025-12-28
 
 Plans:
 - [x] 11-01: Config Module (directories + toml, load/save, CLI integration)
-- [ ] 11-02: Interactive Setup (dialoguer prompts, --save flag, credential persistence)
+- [x] 11-02: Interactive Setup (dialoguer prompts, --save flag, credential persistence)
 
 ## Progress
 
@@ -129,4 +129,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Research | v1.1 | 1/1 | Complete | 2025-12-28 |
 | 9. Detection + Selection | v1.1 | 2/2 | Complete | 2025-12-28 |
 | 10. CLI Command | v1.1 | 2/2 | Complete | 2025-12-28 |
-| 11. Configuration UX | v1.2 | 1/2 | In progress | - |
+| 11. Configuration UX | v1.2 | 2/2 | Complete | 2025-12-28 |

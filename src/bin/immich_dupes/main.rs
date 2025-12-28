@@ -31,6 +31,10 @@ struct Args {
     #[arg(short, long, env = "IMMICH_API_KEY", required = false)]
     api_key: Option<String>,
 
+    /// Save credentials to config file after successful connection
+    #[arg(long, global = true)]
+    save: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -269,21 +273,67 @@ struct VerificationReport {
     anomalies: Vec<String>,
 }
 
-/// Resolves credentials from CLI args and config file.
+/// Resolves credentials from CLI args, config file, or interactive prompt.
 ///
-/// Priority: CLI args (which include env vars via clap) > config file
+/// Priority: CLI args (which include env vars via clap) > config file > interactive prompt
+///
+/// Returns: (url, api_key, was_prompted)
+/// The `was_prompted` flag indicates if credentials were obtained via interactive prompt.
 fn resolve_credentials(
     cli_url: Option<&str>,
     cli_api_key: Option<&str>,
     config: &config::Config,
-) -> (Option<String>, Option<String>) {
-    let url = cli_url
-        .map(String::from)
-        .or_else(|| config.server.url.clone());
-    let api_key = cli_api_key
-        .map(String::from)
-        .or_else(|| config.server.api_key.clone());
-    (url, api_key)
+) -> Result<(String, String, bool)> {
+    // Try CLI/env first
+    if let (Some(url), Some(key)) = (cli_url, cli_api_key) {
+        return Ok((url.to_string(), key.to_string(), false));
+    }
+
+    // Try config file
+    if let (Some(url), Some(key)) = (&config.server.url, &config.server.api_key) {
+        return Ok((url.clone(), key.clone(), false));
+    }
+
+    // Prompt interactively
+    let (url, key) = config::prompt_credentials()?;
+    Ok((url, key, true))
+}
+
+/// Offers to save credentials to config file if prompted or --save flag used.
+///
+/// Returns Ok(true) if saved, Ok(false) if not saved (user declined or already saved).
+fn maybe_save_credentials(
+    url: &str,
+    api_key: &str,
+    was_prompted: bool,
+    save_flag: bool,
+    config: &config::Config,
+) -> Result<bool> {
+    // Only offer to save if prompted or --save flag
+    if !was_prompted && !save_flag {
+        return Ok(false);
+    }
+
+    let config_path = config::config_path();
+
+    // Check if already saved (config has these exact values)
+    if config.server.url.as_deref() == Some(url)
+        && config.server.api_key.as_deref() == Some(api_key)
+    {
+        return Ok(false);
+    }
+
+    // Ask user if they want to save
+    if config::prompt_save(&config_path) {
+        let mut new_config = config.clone();
+        new_config.server.url = Some(url.to_string());
+        new_config.server.api_key = Some(api_key.to_string());
+        config::save(&new_config)?;
+        println!("Credentials saved to {}", config_path.display());
+        return Ok(true);
+    }
+
+    Ok(false)
 }
 
 #[tokio::main]
@@ -298,14 +348,14 @@ async fn main() -> Result<()> {
 
     match args.command {
         Commands::Analyze { output } => {
-            let (url, api_key) = resolve_credentials(
+            let (url, api_key, prompted) = resolve_credentials(
                 args.url.as_deref(),
                 args.api_key.as_deref(),
                 &config,
-            );
-            let url = url.context("IMMICH_URL is required for analyze command")?;
-            let api_key = api_key.context("IMMICH_API_KEY is required for analyze command")?;
+            )?;
             run_analyze(&url, &api_key, &output).await?;
+            // Offer to save after successful command
+            maybe_save_credentials(&url, &api_key, prompted, args.save, &config)?;
         }
         Commands::Execute {
             input,
@@ -316,13 +366,11 @@ async fn main() -> Result<()> {
             skip_review,
             yes,
         } => {
-            let (url, api_key) = resolve_credentials(
+            let (url, api_key, prompted) = resolve_credentials(
                 args.url.as_deref(),
                 args.api_key.as_deref(),
                 &config,
-            );
-            let url = url.context("IMMICH_URL is required for execute command")?;
-            let api_key = api_key.context("IMMICH_API_KEY is required for execute command")?;
+            )?;
             run_execute(
                 &url,
                 &api_key,
@@ -335,53 +383,49 @@ async fn main() -> Result<()> {
                 yes,
             )
             .await?;
+            maybe_save_credentials(&url, &api_key, prompted, args.save, &config)?;
         }
         Commands::Verify { analysis_json, format } => {
-            let (url, api_key) = resolve_credentials(
+            let (url, api_key, prompted) = resolve_credentials(
                 args.url.as_deref(),
                 args.api_key.as_deref(),
                 &config,
-            );
-            let url = url.context("IMMICH_URL is required for verify command")?;
-            let api_key = api_key.context("IMMICH_API_KEY is required for verify command")?;
+            )?;
             run_verify(&url, &api_key, &analysis_json, &format).await?;
+            maybe_save_credentials(&url, &api_key, prompted, args.save, &config)?;
         }
         Commands::FindTestCandidates {
             format,
             scenario,
             output,
         } => {
-            let (url, api_key) = resolve_credentials(
+            let (url, api_key, prompted) = resolve_credentials(
                 args.url.as_deref(),
                 args.api_key.as_deref(),
                 &config,
-            );
-            let url = url.context("IMMICH_URL is required for find-test-candidates command")?;
-            let api_key = api_key.context("IMMICH_API_KEY is required for find-test-candidates command")?;
+            )?;
             run_find_test_candidates(&url, &api_key, &format, scenario.as_deref(), output.as_ref())
                 .await?;
+            maybe_save_credentials(&url, &api_key, prompted, args.save, &config)?;
         }
         Commands::GenerateFixtures { output_dir, scenario } => {
             run_generate_fixtures(&output_dir, scenario.as_deref())?;
         }
         Commands::Restore { backup_dir, dry_run } => {
-            let (url, api_key) = resolve_credentials(
+            let (url, api_key, prompted) = resolve_credentials(
                 args.url.as_deref(),
                 args.api_key.as_deref(),
                 &config,
-            );
-            let url = url.context("IMMICH_URL is required for restore command")?;
-            let api_key = api_key.context("IMMICH_API_KEY is required for restore command")?;
+            )?;
             run_restore(&url, &api_key, &backup_dir, dry_run).await?;
+            maybe_save_credentials(&url, &api_key, prompted, args.save, &config)?;
         }
         Commands::Letterbox { command } => {
-            let (url, api_key) = resolve_credentials(
+            let (url, api_key, prompted) = resolve_credentials(
                 args.url.as_deref(),
                 args.api_key.as_deref(),
                 &config,
-            );
-            let url = url.context("IMMICH_URL is required for letterbox command")?;
-            let api_key = api_key.context("IMMICH_API_KEY is required for letterbox command")?;
+            )?;
             match command {
                 LetterboxCommands::Analyze { output } => {
                     run_letterbox_analyze(&url, &api_key, &output).await?;
@@ -399,6 +443,7 @@ async fn main() -> Result<()> {
                     run_letterbox_verify(&url, &api_key, &analysis_json, &format).await?;
                 }
             }
+            maybe_save_credentials(&url, &api_key, prompted, args.save, &config)?;
         }
     }
 
