@@ -6,7 +6,8 @@ Build a Rust library for the Immich API focused on duplicate management, paired 
 
 ## Milestones
 
-- [v1.0 MVP](milestones/v1.0-ROADMAP.md) (Phases 1-7) - SHIPPED 2025-12-27
+- ✅ [v1.0 MVP](milestones/v1.0-ROADMAP.md) (Phases 1-7) - SHIPPED 2025-12-27
+- 🚧 **v1.1 iPhone Letterbox Duplicates** - Phases 8-11 (in progress)
 
 ## Completed Milestones
 
@@ -71,10 +72,52 @@ Build a Rust library for the Immich API focused on duplicate management, paired 
 
 </details>
 
+### 🚧 v1.1 iPhone Letterbox Duplicates (In Progress)
+
+**Milestone Goal:** Detect and remove iPhone letterbox duplicates - pairs of images where one has black bars to simulate a different aspect ratio.
+
+#### Phase 8: Research
+**Goal**: Investigate iPhone EXIF patterns and metadata signals for letterboxed images
+**Depends on**: v1.0 complete
+**Research**: Likely (unknown metadata patterns)
+**Research topics**: iPhone EXIF for aspect ratio crops, file naming conventions, any distinguishing metadata
+**Plans**: TBD
+
+Plans:
+- [ ] 08-01: TBD (run /gsd:plan-phase 8 to break down)
+
+#### Phase 9: Detection
+**Goal**: Find candidate pairs by matching timestamp + iPhone camera identification
+**Depends on**: Phase 8
+**Research**: Unlikely (internal patterns)
+**Plans**: TBD
+
+Plans:
+- [ ] 09-01: TBD
+
+#### Phase 10: Analysis
+**Goal**: Analyze images to detect which has black bars (letterboxing)
+**Depends on**: Phase 9
+**Research**: Likely (image processing approach)
+**Research topics**: Edge pixel analysis, aspect ratio heuristics, Rust image processing libraries
+**Plans**: TBD
+
+Plans:
+- [ ] 10-01: TBD
+
+#### Phase 11: CLI Command
+**Goal**: Implement `letterbox` subcommand with analyze/execute workflow
+**Depends on**: Phase 10
+**Research**: Unlikely (follows existing CLI patterns)
+**Plans**: TBD
+
+Plans:
+- [ ] 11-01: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -85,3 +128,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. Execution Stage | v1.0 | 4/4 | Complete | 2025-12-26 |
 | 6. Synthetic Integration Tests | v1.0 | 11/11 | Complete | 2025-12-27 |
 | 7. Live Instance Validation | v1.0 | 3/3 | Complete | 2025-12-27 |
+| 8. Research | v1.1 | 0/? | Not started | - |
+| 9. Detection | v1.1 | 0/? | Not started | - |
+| 10. Analysis | v1.1 | 0/? | Not started | - |
+| 11. CLI Command | v1.1 | 0/? | Not started | - |
