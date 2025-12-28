@@ -18,12 +18,12 @@
 
 ## Current Position
 
-Phase: 8 of 10 (Research)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2025-12-28 - Completed 08-01-PLAN.md
+Phase: 9 of 10 (Detection + Selection)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2025-12-28 - Completed 09-01-PLAN.md
 
-Progress: █░░░░░░░░░ 10% (1/? plans in v1.1)
+Progress: ██░░░░░░░░ 20% (2/? plans in v1.1)
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Progress: █░░░░░░░░░ 10% (1/? plans in v1.1)
 | 6 | 11/11 | 199 min | 18 min |
 | 7 | 3/3 | 45 min | 15 min |
 | 8 | 1/1 | 2 min | 2 min |
+| 9 | 1/2 | TBD | TBD |
 
 **Recent Trend:**
 - Last 5 plans: 06-05-03 (45 min), 07-01 (27 min), 07-02 (10 min), 07-03 (8 min), 08-01 (2 min)
@@ -116,6 +117,9 @@ Progress: █░░░░░░░░░ 10% (1/? plans in v1.1)
 | 08-01 | 4:3 always wins selection | More pixels, complete scene, can crop later |
 | 08-01 | No pixel analysis needed | Detection purely metadata-based via Immich API |
 | 08-01 | Consolidate to 3 phases | Original 4 phases → 3 (eliminated pixel analysis) |
+| 09-01 | Orientation-agnostic ratio | Use max/min dims to handle portrait/landscape |
+| 09-01 | PairingKey grouping | timestamp_second + make + model + GPS optional |
+| 09-01 | Serialize for AssetResponse | Required for LetterboxPair JSON serialization |
 
 ### Roadmap Evolution
 
@@ -143,6 +147,6 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-28
-Stopped at: Completed 08-01-PLAN.md (Phase 8 complete)
+Stopped at: Completed 09-01-PLAN.md
 Resume file: None
-Note: Phase 8 Research complete. Ready to plan Phase 9: Detection + Selection (consolidated from original 9+10).
+Note: Phase 9 plan 1/2 complete. Ready for 09-02-PLAN.md (Analysis Report).

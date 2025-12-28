@@ -94,10 +94,11 @@ Plans:
 **Goal**: Find candidate pairs and select keeper using timestamp + camera matching
 **Depends on**: Phase 8 (research findings)
 **Research**: Unlikely (approach documented)
-**Plans**: TBD
+**Status**: In progress (1/2 plans complete)
 
 Plans:
-- [ ] 09-01: TBD (run /gsd:plan-phase 9 to break down)
+- [x] 09-01: Letterbox Module Core (AspectRatio, LetterboxPair, pairing algorithm)
+- [ ] 09-02: Analysis Report (LetterboxAnalysis, ImmichClient integration)
 
 #### Phase 10: CLI Command
 **Goal**: Implement `letterbox` subcommand with analyze/execute workflow
@@ -123,5 +124,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Synthetic Integration Tests | v1.0 | 11/11 | Complete | 2025-12-27 |
 | 7. Live Instance Validation | v1.0 | 3/3 | Complete | 2025-12-27 |
 | 8. Research | v1.1 | 1/1 | Complete | 2025-12-28 |
-| 9. Detection + Selection | v1.1 | 0/? | Not started | - |
+| 9. Detection + Selection | v1.1 | 1/2 | In progress | - |
 | 10. CLI Command | v1.1 | 0/? | Not started | - |
