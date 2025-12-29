@@ -15,7 +15,8 @@ use tokio::sync::Semaphore;
 use crate::client::ImmichClient;
 use crate::error::Result;
 use crate::models::{
-    ConsolidationResult, ExecutionConfig, ExecutionReport, GroupResult, OperationResult,
+    AlbumTransferResult, ConsolidationResult, ExecutionConfig, ExecutionReport, GroupResult,
+    OperationResult,
 };
 use crate::scoring::DuplicateAnalysis;
 
@@ -194,7 +195,38 @@ impl Executor {
         pb.set_message("Checking metadata consolidation");
         let consolidation_result = self.consolidate_metadata(analysis).await;
 
-        // Step 2: Download each loser asset
+        // Step 2: Transfer album memberships (if enabled)
+        let album_transfer_result = if self.config.preserve_albums {
+            pb.set_message("Transferring album memberships");
+            Some(self.transfer_albums(analysis).await)
+        } else {
+            None
+        };
+
+        // Step 3: Decide whether to proceed with deletion
+        // If album transfer failed after retry, skip deletion for this group
+        let should_skip_deletion = if let Some(ref transfer) = album_transfer_result {
+            transfer.had_failures
+        } else {
+            false
+        };
+
+        if should_skip_deletion {
+            // Return early - don't download or delete
+            return GroupResult {
+                duplicate_id: analysis.duplicate_id.clone(),
+                winner_id: analysis.winner.asset_id.clone(),
+                consolidation_result,
+                album_transfer_result,
+                download_results: vec![],
+                delete_result: Some(OperationResult::Skipped {
+                    id: analysis.duplicate_id.clone(),
+                    reason: "Album transfer failed after retry, skipping deletion to preserve album integrity".to_string(),
+                }),
+            };
+        }
+
+        // Step 4: Download each loser asset
         for loser in &analysis.losers {
             pb.set_message(format!("Downloading {}", loser.filename));
 
@@ -211,7 +243,7 @@ impl Executor {
             })
             .collect();
 
-        // Step 3: Only delete if we have successfully downloaded assets
+        // Step 5: Only delete if we have successfully downloaded assets
         let delete_result = if downloaded_ids.is_empty() {
             Some(OperationResult::Skipped {
                 id: analysis.duplicate_id.clone(),
@@ -236,6 +268,7 @@ impl Executor {
             duplicate_id: analysis.duplicate_id.clone(),
             winner_id: analysis.winner.asset_id.clone(),
             consolidation_result,
+            album_transfer_result,
             download_results,
             delete_result,
         }
@@ -365,6 +398,185 @@ impl Executor {
         } else {
             None // Consolidation failed, but we can still proceed with download/delete
         }
+    }
+
+    /// Transfer album memberships from loser assets to the winner.
+    ///
+    /// For each loser asset that belongs to albums, adds the winner to those albums
+    /// and removes the loser. Implements retry logic: attempt once, retry on failure,
+    /// skip deletion if still failing.
+    async fn transfer_albums(&self, analysis: &DuplicateAnalysis) -> AlbumTransferResult {
+        let mut transferred_albums = Vec::new();
+        let mut album_names = Vec::new();
+        let mut had_failures = false;
+        let mut error_messages = Vec::new();
+
+        // Collect all unique albums from all losers
+        let mut albums_to_transfer = std::collections::HashMap::new();
+
+        for loser in &analysis.losers {
+            let albums_result = self
+                .rate_limited(async { self.client.get_albums_for_asset(&loser.asset_id).await })
+                .await;
+
+            match albums_result {
+                Ok(albums) => {
+                    for album in albums {
+                        albums_to_transfer
+                            .entry(album.id.clone())
+                            .or_insert_with(|| album);
+                    }
+                }
+                Err(e) => {
+                    had_failures = true;
+                    error_messages.push(format!(
+                        "Failed to get albums for {}: {}",
+                        loser.asset_id, e
+                    ));
+                }
+            }
+        }
+
+        // If no albums found, return success with 0 transfers
+        if albums_to_transfer.is_empty() {
+            return AlbumTransferResult {
+                albums_transferred: 0,
+                album_ids: vec![],
+                album_names: vec![],
+                had_failures: false,
+                error_message: None,
+            };
+        }
+
+        // Transfer each album (with retry logic)
+        for (album_id, album) in albums_to_transfer {
+            let transfer_succeeded = self
+                .transfer_single_album(
+                    &album_id,
+                    &analysis.winner.asset_id,
+                    &analysis
+                        .losers
+                        .iter()
+                        .map(|l| l.asset_id.clone())
+                        .collect::<Vec<_>>(),
+                )
+                .await;
+
+            if transfer_succeeded {
+                transferred_albums.push(album_id);
+                album_names.push(album.album_name);
+            } else {
+                had_failures = true;
+                error_messages.push(format!(
+                    "Failed to transfer album '{}' after retry",
+                    album.album_name
+                ));
+            }
+        }
+
+        AlbumTransferResult {
+            albums_transferred: transferred_albums.len(),
+            album_ids: transferred_albums,
+            album_names,
+            had_failures,
+            error_message: if error_messages.is_empty() {
+                None
+            } else {
+                Some(error_messages.join("; "))
+            },
+        }
+    }
+
+    /// Transfer a single album with exponential backoff retry logic.
+    ///
+    /// Retries with exponential backoff (250ms, 500ms, 1s, 2s, 4s, 8s, 16s, 32s)
+    /// for up to 60 seconds total. Returns true if transfer succeeded, false if
+    /// all retries exhausted.
+    async fn transfer_single_album(
+        &self,
+        album_id: &str,
+        winner_id: &str,
+        loser_ids: &[String],
+    ) -> bool {
+        const MAX_DURATION: std::time::Duration = std::time::Duration::from_secs(60);
+        const INITIAL_DELAY: std::time::Duration = std::time::Duration::from_millis(250);
+
+        let start = tokio::time::Instant::now();
+        let mut delay = INITIAL_DELAY;
+
+        loop {
+            // Attempt transfer
+            match self
+                .try_transfer_album(album_id, winner_id, loser_ids)
+                .await
+            {
+                Ok(()) => return true,
+                Err(_) => {
+                    // Check if we've exceeded the maximum duration
+                    if start.elapsed() >= MAX_DURATION {
+                        return false;
+                    }
+
+                    // Wait with exponential backoff, but don't exceed remaining time
+                    let remaining = MAX_DURATION.saturating_sub(start.elapsed());
+                    let sleep_duration = delay.min(remaining);
+
+                    if sleep_duration.is_zero() {
+                        return false;
+                    }
+
+                    tokio::time::sleep(sleep_duration).await;
+
+                    // Double the delay for next attempt (exponential backoff)
+                    delay = delay.saturating_mul(2);
+                }
+            }
+        }
+    }
+
+    /// Attempt to transfer an album once.
+    async fn try_transfer_album(
+        &self,
+        album_id: &str,
+        winner_id: &str,
+        loser_ids: &[String],
+    ) -> Result<()> {
+        // Add winner to album (skip if already in album)
+        let add_result = self
+            .rate_limited(async {
+                self.client
+                    .add_assets_to_album(album_id, &[winner_id.to_string()])
+                    .await
+            })
+            .await;
+
+        // Even if add fails because winner is already in album, continue to remove losers
+        // Check if error is "already in album" type error
+        if let Err(e) = add_result {
+            // If it's not a "duplicate" type error, propagate it
+            match e {
+                crate::error::ImmichError::Api { status, ref message } => {
+                    // 400 with "duplicate" or "already" in message is OK
+                    if status != 400
+                        || (!message.to_lowercase().contains("duplicate")
+                            && !message.to_lowercase().contains("already"))
+                    {
+                        return Err(e);
+                    }
+                }
+                _ => return Err(e),
+            }
+        }
+
+        // Remove losers from album
+        self.rate_limited(async {
+            self.client
+                .remove_assets_from_album(album_id, loser_ids)
+                .await
+        })
+        .await?;
+
+        Ok(())
     }
 
     /// Download a loser asset to the backup directory.
