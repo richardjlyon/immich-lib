@@ -23,7 +23,7 @@ cargo clippy -- -D warnings
 
 ## Code Inspection
 
-**Use Serena MCP tools for code analysis** instead of basic Read/Edit:
+IMPORTANT! **Use Serena MCP tools for code analysis** instead of basic Read/Edit:
 
 - `mcp__serena__get_symbols_overview` - Get file structure before reading
 - `mcp__serena__find_symbol` - Find functions, structs, enums by name

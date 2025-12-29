@@ -32,3 +32,8 @@ tests/fixtures/*
 analysis.json
 test-analysis.json
 test-candidates.json
+
+# Validation outputs (from live instance testing)
+tests/docker/validation-*
+letterbox-analysis.json
+letterbox-backups/
