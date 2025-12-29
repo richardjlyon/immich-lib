@@ -37,6 +37,12 @@ The tool selects winners by **largest dimensions** (width × height), ensuring y
 
 ## Installation
 
+### Homebrew (macOS)
+
+```bash
+brew install richardjlyon/tap/immich-dupes
+```
+
 ### Pre-built binaries
 
 Download from [Releases](https://github.com/richardjlyon/immich-lib/releases/latest) for Linux, macOS, and Windows.
