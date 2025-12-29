@@ -77,6 +77,10 @@ enum Commands {
         /// Skip confirmation prompt
         #[arg(short, long, default_value = "false")]
         yes: bool,
+
+        /// Do not preserve album memberships when deleting duplicates
+        #[arg(long, default_value = "false")]
+        no_preserve_albums: bool,
     },
 
     /// Verify post-execution state: check winners exist, losers deleted
@@ -365,6 +369,7 @@ async fn main() -> Result<()> {
             concurrent,
             skip_review,
             yes,
+            no_preserve_albums,
         } => {
             let (url, api_key, prompted) = resolve_credentials(
                 args.url.as_deref(),
@@ -381,6 +386,7 @@ async fn main() -> Result<()> {
                 concurrent,
                 skip_review,
                 yes,
+                !no_preserve_albums,
             )
             .await?;
             maybe_save_credentials(&url, &api_key, prompted, args.save, &config)?;
@@ -527,6 +533,7 @@ async fn run_execute(
     concurrent: usize,
     skip_review: bool,
     yes: bool,
+    preserve_albums: bool,
 ) -> Result<()> {
     // Read and parse analysis JSON
     let file = File::open(input)
@@ -571,6 +578,7 @@ async fn run_execute(
     }
     println!("Backup directory: {}", backup_dir.display());
     println!("Force delete: {}", if force { "yes (permanent)" } else { "no (trash)" });
+    println!("Preserve albums: {}", if preserve_albums { "yes" } else { "no" });
     println!();
 
     // Confirmation prompt
@@ -601,6 +609,7 @@ async fn run_execute(
         max_concurrent: concurrent,
         backup_dir: backup_dir.clone(),
         force_delete: force,
+        preserve_albums,
     };
 
     let executor = Executor::new(client, config);
@@ -617,6 +626,12 @@ async fn run_execute(
     println!("Assets deleted: {}", exec_report.deleted);
     println!("Failed operations: {}", exec_report.failed);
     println!("Skipped: {}", exec_report.skipped);
+    if preserve_albums {
+        println!("Albums transferred: {}", exec_report.albums_transferred);
+        if exec_report.album_transfer_failures > 0 {
+            println!("Album transfer failures: {}", exec_report.album_transfer_failures);
+        }
+    }
 
     // Show first few errors if any
     if exec_report.failed > 0 {

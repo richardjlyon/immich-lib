@@ -40,3 +40,11 @@ IMPORTANT! **Use Serena MCP tools for code analysis** instead of basic Read/Edit
 - `mcp__playwright__browser_click` - Interact with elements
 
 Playwright provides full browser automation for API docs, testing, etc.
+
+## Immich API Spec
+
+**Verify API usage against the OpenAPI spec:**
+
+- Fetch from: https://github.com/immich-app/immich/raw/refs/heads/main/open-api/immich-openapi-specs.json
+- Download to temp directory and query with `jq` or `jaq`, whichever is available.
+- Check endpoints, parameters, request/response schemas before implementing

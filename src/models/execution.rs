@@ -21,6 +21,9 @@ pub struct ExecutionConfig {
 
     /// If true, permanently delete assets; if false, move to trash
     pub force_delete: bool,
+
+    /// If true, preserve album memberships by transferring to winner
+    pub preserve_albums: bool,
 }
 
 impl Default for ExecutionConfig {
@@ -30,6 +33,7 @@ impl Default for ExecutionConfig {
             max_concurrent: 5,
             backup_dir: PathBuf::from("./backups"),
             force_delete: false,
+            preserve_albums: true,
         }
     }
 }
@@ -90,6 +94,38 @@ impl ConsolidationResult {
     }
 }
 
+/// Result of transferring album memberships from losers to winner.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlbumTransferResult {
+    /// Number of albums successfully transferred
+    pub albums_transferred: usize,
+
+    /// Album IDs that were transferred
+    pub album_ids: Vec<String>,
+
+    /// Album names for readability
+    pub album_names: Vec<String>,
+
+    /// Whether any transfer failed
+    pub had_failures: bool,
+
+    /// Error message if transfers failed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
+impl AlbumTransferResult {
+    /// Check if any albums were transferred.
+    pub fn any_transferred(&self) -> bool {
+        self.albums_transferred > 0
+    }
+
+    /// Check if all transfers succeeded.
+    pub fn all_succeeded(&self) -> bool {
+        !self.had_failures
+    }
+}
+
 /// Result of processing a single duplicate group.
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupResult {
@@ -102,6 +138,10 @@ pub struct GroupResult {
     /// Result of metadata consolidation (if attempted)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub consolidation_result: Option<ConsolidationResult>,
+
+    /// Result of album membership transfer (if attempted)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub album_transfer_result: Option<AlbumTransferResult>,
 
     /// Results of downloading each loser asset
     pub download_results: Vec<OperationResult>,
@@ -129,6 +169,12 @@ pub struct ExecutionReport {
     /// Number of operations that were skipped
     pub skipped: usize,
 
+    /// Total number of albums transferred across all groups
+    pub albums_transferred: usize,
+
+    /// Number of album transfer operations that had failures
+    pub album_transfer_failures: usize,
+
     /// Detailed results for each group
     pub results: Vec<GroupResult>,
 }
@@ -142,6 +188,8 @@ impl ExecutionReport {
             deleted: 0,
             failed: 0,
             skipped: 0,
+            albums_transferred: 0,
+            album_transfer_failures: 0,
             results: Vec::new(),
         }
     }
@@ -172,6 +220,14 @@ impl ExecutionReport {
                 }
                 OperationResult::Failed { .. } => self.failed += 1,
                 OperationResult::Skipped { .. } => self.skipped += 1,
+            }
+        }
+
+        // Count album transfer outcomes
+        if let Some(ref album_transfer) = result.album_transfer_result {
+            self.albums_transferred += album_transfer.albums_transferred;
+            if album_transfer.had_failures {
+                self.album_transfer_failures += 1;
             }
         }
 

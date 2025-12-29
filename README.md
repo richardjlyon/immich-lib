@@ -27,8 +27,8 @@ With 2000+ duplicates, manual review isn't feasible. This tool automates smart s
 ## How It Works
 
 1. **Analyze** - Scans Immich duplicates, scores by metadata completeness, outputs reviewable JSON
-2. **Execute** - Downloads backups, consolidates metadata to winners, deletes losers
-3. **Verify** - Validates winners exist and losers are deleted
+2. **Execute** - Downloads backups, consolidates metadata to winners, transfers album memberships, deletes losers
+3. **Verify** - Validates winners exist, losers are deleted, and albums are preserved
 4. **Restore** - Re-uploads backed-up files if needed
 
 ### Winner Selection
@@ -83,11 +83,14 @@ immich-dupes execute -i duplicates.json -b ./backups
 This will:
 1. Download all loser files to `./backups/`
 2. Consolidate GPS/timezone metadata from losers to winners
-3. Move losers to Immich trash (or permanently delete with `--force`)
+3. Transfer album memberships from losers to winners (preserving your album organization)
+4. Move losers to Immich trash (or permanently delete with `--force`)
 
 **Options:**
 - `--skip-review` - Skip groups with metadata conflicts that need manual review
 - `--yes` - Skip confirmation prompt
+- `--force` - Permanently delete instead of moving to trash
+- `--no-preserve-albums` - Don't transfer album memberships (NOT RECOMMENDED)
 - `--rate-limit <N>` - Max API requests per second (default: 10)
 - `--concurrent <N>` - Max concurrent operations (default: 5)
 
@@ -164,7 +167,9 @@ The analysis shows:
 - Skipped non-iPhone assets
 - Skipped ambiguous groups (multiple candidates)
 
-## What Gets Consolidated
+## What Gets Preserved
+
+### Metadata Consolidation
 
 When a loser has metadata the winner lacks, it's transferred:
 
@@ -175,10 +180,22 @@ When a loser has metadata the winner lacks, it's transferred:
 | Description | Yes |
 | Camera make/model | No (Immich API limitation) |
 
+### Album Memberships
+
+**By default, album memberships are preserved** during deduplication:
+
+- If a loser belongs to albums, the winner is added to those albums
+- The loser is then removed from the albums before deletion
+- If any album transfer fails after retry, the entire group's deletion is skipped
+- Use `--no-preserve-albums` to disable this behavior (not recommended)
+
+**Retry Logic**: Album operations use exponential backoff (250ms, 500ms, 1s, 2s, 4s, 8s, 16s, 32s) for up to 60 seconds total. If all retries fail, deletion is skipped for safety to prevent losing album organization.
+
 ## Safety Features
 
 - **Two-stage workflow** - Review JSON before any deletions
 - **Full backups** - Original files downloaded before deletion
+- **Album preservation** - Transfers album memberships before deletion with retry logic
 - **Trash by default** - Uses Immich trash, not permanent delete
 - **Conflict detection** - Flags groups with conflicting metadata for review
 - **Verification** - Confirm end state matches expectations

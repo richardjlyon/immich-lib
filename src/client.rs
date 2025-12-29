@@ -12,7 +12,9 @@ use tokio::io::AsyncWriteExt;
 use url::Url;
 
 use crate::error::{ImmichError, Result};
-use crate::models::{AssetResponse, DuplicateGroup};
+use crate::models::{
+    AddAssetsRequest, AlbumResponse, AssetResponse, DuplicateGroup, RemoveAssetsRequest,
+};
 
 /// Response from the Immich upload endpoint.
 #[derive(Debug, Clone, Deserialize)]
@@ -74,9 +76,8 @@ impl ImmichClient {
 
         // Build default headers with API key
         let mut headers = HeaderMap::new();
-        let header_value = HeaderValue::from_str(api_key).map_err(|_: InvalidHeaderValue| {
-            ImmichError::InvalidApiKey
-        })?;
+        let header_value = HeaderValue::from_str(api_key)
+            .map_err(|_: InvalidHeaderValue| ImmichError::InvalidApiKey)?;
         headers.insert("x-api-key", header_value);
 
         // Build HTTP client with defaults
@@ -347,6 +348,100 @@ impl ImmichClient {
         Ok(())
     }
 
+    /// Fetches albums containing a specific asset.
+    ///
+    /// # Arguments
+    ///
+    /// * `asset_id` - The ID of the asset to find albums for
+    ///
+    /// # Returns
+    ///
+    /// A vector of albums containing this asset.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The HTTP request fails
+    /// - The server returns an error response
+    pub async fn get_albums_for_asset(&self, asset_id: &str) -> Result<Vec<AlbumResponse>> {
+        let mut url = self.base_url.join("/api/albums")?;
+        url.query_pairs_mut().append_pair("assetId", asset_id);
+        let response = self.client.get(url).send().await?;
+        self.handle_response(response).await
+    }
+
+    /// Adds assets to an album.
+    ///
+    /// # Arguments
+    ///
+    /// * `album_id` - The ID of the album
+    /// * `asset_ids` - The IDs of assets to add
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The HTTP request fails
+    /// - The server returns an error response
+    pub async fn add_assets_to_album(&self, album_id: &str, asset_ids: &[String]) -> Result<()> {
+        let url = self
+            .base_url
+            .join(&format!("/api/albums/{}/assets", album_id))?;
+        let body = AddAssetsRequest {
+            ids: asset_ids.to_vec(),
+        };
+
+        let response = self.client.put(url).json(&body).send().await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(ImmichError::Api {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Removes assets from an album.
+    ///
+    /// # Arguments
+    ///
+    /// * `album_id` - The ID of the album
+    /// * `asset_ids` - The IDs of assets to remove
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The HTTP request fails
+    /// - The server returns an error response
+    pub async fn remove_assets_from_album(
+        &self,
+        album_id: &str,
+        asset_ids: &[String],
+    ) -> Result<()> {
+        let url = self
+            .base_url
+            .join(&format!("/api/albums/{}/assets", album_id))?;
+        let body = RemoveAssetsRequest {
+            ids: asset_ids.to_vec(),
+        };
+
+        let response = self.client.delete(url).json(&body).send().await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(ImmichError::Api {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+
+        Ok(())
+    }
+
     /// Uploads a file to Immich as a new asset.
     ///
     /// # Arguments
@@ -436,10 +531,7 @@ impl ImmichClient {
     }
 
     /// Handles an HTTP response, parsing success responses or extracting error details.
-    async fn handle_response<T: DeserializeOwned>(
-        &self,
-        response: reqwest::Response,
-    ) -> Result<T> {
+    async fn handle_response<T: DeserializeOwned>(&self, response: reqwest::Response) -> Result<T> {
         let status = response.status();
 
         if status.is_success() {
