@@ -1,0 +1,82 @@
+name: Update Homebrew Formula
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+
+jobs:
+  update-formula:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get release tag
+        id: tag
+        run: echo "tag=${GITHUB_REF_NAME:-$(gh release view --repo ${{ github.repository }} --json tagName -q .tagName)}" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download release assets
+        run: |
+          gh release download ${{ steps.tag.outputs.tag }} \
+            --repo ${{ github.repository }} \
+            --pattern '*apple-darwin.tar.gz'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate checksums
+        id: checksums
+        run: |
+          echo "arm64_sha256=$(shasum -a 256 immich-dupes-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "x86_64_sha256=$(shasum -a 256 immich-dupes-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: richardjlyon/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update formula
+        run: |
+          VERSION="${{ steps.tag.outputs.tag }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix
+
+          cat > Formula/immich-dupes.rb << 'EOF'
+          class ImmichDupes < Formula
+            desc "Intelligent Immich duplicate management with metadata preservation"
+            homepage "https://github.com/richardjlyon/immich-lib"
+            version "VERSION_PLACEHOLDER"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/richardjlyon/immich-lib/releases/download/vVERSION_PLACEHOLDER/immich-dupes-aarch64-apple-darwin.tar.gz"
+                sha256 "ARM64_SHA256_PLACEHOLDER"
+              end
+              on_intel do
+                url "https://github.com/richardjlyon/immich-lib/releases/download/vVERSION_PLACEHOLDER/immich-dupes-x86_64-apple-darwin.tar.gz"
+                sha256 "X86_64_SHA256_PLACEHOLDER"
+              end
+            end
+
+            def install
+              bin.install "immich-dupes"
+            end
+
+            test do
+              assert_match "immich-dupes", shell_output("#{bin}/immich-dupes --version")
+            end
+          end
+          EOF
+
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g" Formula/immich-dupes.rb
+          sed -i "s/ARM64_SHA256_PLACEHOLDER/${{ steps.checksums.outputs.arm64_sha256 }}/g" Formula/immich-dupes.rb
+          sed -i "s/X86_64_SHA256_PLACEHOLDER/${{ steps.checksums.outputs.x86_64_sha256 }}/g" Formula/immich-dupes.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/immich-dupes.rb
+          git commit -m "Update immich-dupes to ${{ steps.tag.outputs.tag }}"
+          git push
