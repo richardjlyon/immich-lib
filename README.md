@@ -81,6 +81,7 @@ This will:
 **Options:**
 - `--skip-review` - Skip groups with metadata conflicts that need manual review
 - `--yes` - Skip confirmation prompt
+- `--force` - Permanently delete instead of moving to trash
 - `--rate-limit <N>` - Max API requests per second (default: 10)
 - `--concurrent <N>` - Max concurrent operations (default: 5)
 
