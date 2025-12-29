@@ -37,13 +37,14 @@ The tool selects winners by **largest dimensions** (width × height), ensuring y
 
 ## Installation
 
-```bash
-# Clone and build
-git clone https://github.com/richardjlyon/immich-lib.git
-cd immich-lib
-cargo build --release
+### Pre-built binaries
 
-# Binary is at ./target/release/immich-dupes
+Download from [Releases](https://github.com/richardjlyon/immich-lib/releases/latest) for Linux, macOS, and Windows.
+
+### From source
+
+```bash
+cargo install --git https://github.com/richardjlyon/immich-lib
 ```
 
 ## Usage
